@@ -276,7 +276,7 @@ var _VirtualDom_attributeNS = F3(function(namespace, key, value)
 
 function _VirtualDom_noScript(tag)
 {
-	return tag == 'script' ? 'p' : tag;
+	return tag.toLowerCase() == 'script' ? 'p' : tag;
 }
 
 function _VirtualDom_noOnOrFormAction(key)
