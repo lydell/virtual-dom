@@ -69,8 +69,8 @@ defined like this:
       nodeNS "http://www.w3.org/2000/svg" "path" attributes children
 -}
 nodeNS : String -> String -> List (Attribute msg) -> List (Node msg) -> Node msg
-nodeNS tag =
-  Elm.Kernel.VirtualDom.nodeNS (Elm.Kernel.VirtualDom.noScript tag)
+nodeNS namespace tag =
+  Elm.Kernel.VirtualDom.nodeNS namespace (Elm.Kernel.VirtualDom.noScript tag)
 
 
 {-| Just put plain text in the DOM. It will escape the string so that it appears
@@ -165,7 +165,7 @@ property : String -> Json.Value -> Attribute msg
 property key value =
   Elm.Kernel.VirtualDom.property
     (Elm.Kernel.VirtualDom.noInnerHtmlOrFormAction key)
-    (Elm.Kernel.VirtualDom.noJavaScriptOrHtmlUri value)
+    (Elm.Kernel.VirtualDom.noJavaScriptOrHtmlJson value)
 
 
 {-| Create an attribute. This uses JavaScript’s `setAttribute` function
