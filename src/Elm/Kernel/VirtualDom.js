@@ -2,7 +2,7 @@
 
 import Basics exposing (identity)
 import Elm.Kernel.Debug exposing (crash)
-import Elm.Kernel.Json exposing (equality, runHelp, unwrap)
+import Elm.Kernel.Json exposing (equality, runHelp, unwrap, wrap)
 import Elm.Kernel.List exposing (Cons, Nil)
 import Elm.Kernel.Utils exposing (Tuple2)
 import Elm.Kernel.Platform exposing (export)
