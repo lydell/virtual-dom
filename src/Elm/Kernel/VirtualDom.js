@@ -323,8 +323,9 @@ function _VirtualDom_noJavaScriptOrHtmlUri(value)
 function _VirtualDom_noJavaScriptOrHtmlJson(value)
 {
 	return (typeof __Json_unwrap(value) === 'string' && _VirtualDom_RE_js_html.test(__Json_unwrap(value)))
-		? __Json_wrap(/**__PROD/''//*//**__DEBUG/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/)
-		: value;
+		? __Json_wrap(
+			/**__PROD/''//*//**__DEBUG/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
+		) : value;
 }
 
 
