@@ -17,6 +17,9 @@ import VirtualDom exposing (toHandlerInt)
 // HELPERS
 
 
+// Flips between true and false every render.
+var _VirtualDom_even = true;
+
 var _VirtualDom_divertHrefToApp;
 
 var _VirtualDom_doc = typeof document !== 'undefined' ? document : {};
@@ -46,6 +49,24 @@ var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args
 	return {};
 });
 
+function _VirtualDom_wrap(object)
+{
+	// Add a non-enumerable property to not break Elm's equality checks.
+	// You aren’t supposed to compare virtual nodes, but since it’s possible
+	// to not break people who do, why not?
+	return Object.defineProperty(object, "_", {
+		value: {
+			nodes: [],
+			i0: 0,
+			i1: 0
+		},
+		writable: true
+	});
+}
+
+
+
+
 
 
 // TEXT
@@ -53,10 +74,10 @@ var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args
 
 function _VirtualDom_text(string)
 {
-	return {
+	return _VirtualDom_wrap({
 		$: __2_TEXT,
-		__text: string
-	};
+		__text: string,
+	});
 }
 
 
@@ -68,22 +89,18 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = [], descendantsCount = 0; kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = []; kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
-			var kid = kidList.a;
-			descendantsCount += (kid.__descendantsCount || 0);
-			kids.push(kid);
+			kids.push(kidList.a);
 		}
-		descendantsCount += kids.length;
 
-		return {
+		return _VirtualDom_wrap({
 			$: __2_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
 			__kids: kids,
-			__namespace: namespace,
-			__descendantsCount: descendantsCount
-		};
+			__namespace: namespace
+		});
 	});
 });
 
@@ -99,22 +116,18 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = [], descendantsCount = 0; kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = []; kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
-			var kid = kidList.a;
-			descendantsCount += (kid.b.__descendantsCount || 0);
-			kids.push(kid);
+			kids.push(kidList.a);
 		}
-		descendantsCount += kids.length;
 
-		return {
+		return _VirtualDom_wrap({
 			$: __2_KEYED_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
 			__kids: kids,
-			__namespace: namespace,
-			__descendantsCount: descendantsCount
-		};
+			__namespace: namespace
+		});
 	});
 });
 
@@ -128,13 +141,13 @@ var _VirtualDom_keyedNode = _VirtualDom_keyedNodeNS(undefined);
 
 function _VirtualDom_custom(factList, model, render, diff)
 {
-	return {
+	return _VirtualDom_wrap({
 		$: __2_CUSTOM,
 		__facts: _VirtualDom_organizeFacts(factList),
 		__model: model,
 		__render: render,
 		__diff: diff
-	};
+	});
 }
 
 
@@ -147,8 +160,7 @@ var _VirtualDom_map = F2(function(tagger, node)
 	return {
 		$: __2_TAGGER,
 		__tagger: tagger,
-		__node: node,
-		__descendantsCount: 1 + (node.__descendantsCount || 0)
+		__node: node
 	};
 });
 
@@ -696,9 +708,11 @@ function _VirtualDom_equalEvents(x, y)
 //
 function _VirtualDom_diff(x, y)
 {
-	var patches = [];
-	_VirtualDom_diffHelp(x, y, patches, 0);
-	return patches;
+	// var patches = [];
+	// _VirtualDom_diffHelp(x, y, patches, 0);
+	// return patches;
+	// Hack to provide the new virtual dom node to `_VirtualDom_applyPatches` without making changes in elm/browser.
+	return y;
 }
 
 
@@ -716,36 +730,28 @@ function _VirtualDom_pushPatch(patches, type, index, data)
 }
 
 
-function _VirtualDom_diffHelp(x, y, patches, index)
+function _VirtualDom_diffHelp(x, y, sendToApp)
 {
-	if (x === y)
-	{
+	// Note: We can’t exit early if `x === y` because:
+	// - Event listeners may need to reference a new `sendToApp`.
+	// - .i0 or .i1 may need to be reset.
+
+	// Remember: When virtualizing already existing DOM, we can’t know
+	// where `map` and `lazy` nodes should be, and which ones are `Keyed`.
+	// So it’s important to not redraw fully when just the new virtual dom node
+	// is a `map` or `lazy` or `Keyed`, to avoid unnecessary DOM changes on startup.
+
+	while (x.$ === __2_TAGGER) {
+		x = x.__node;
+	}
+
+	if (y.$ === __2_TAGGER) {
+		_VirtualDom_diffHelp(x, y.__node, function (msg) { return sendToApp(y.__tagger(msg)) });
 		return;
 	}
 
-	var xType = x.$;
-	var yType = y.$;
-
-	// Bail if you run into different types of nodes. Implies that the
-	// structure has changed significantly and it's not worth a diff.
-	if (xType !== yType)
-	{
-		if (xType === __2_NODE && yType === __2_KEYED_NODE)
-		{
-			y = _VirtualDom_dekey(y);
-			yType = __2_NODE;
-		}
-		else
-		{
-			_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
-			return;
-		}
-	}
-
-	// Now we know that both nodes are the same $.
-	switch (yType)
-	{
-		case __2_THUNK:
+	if (x.$ === __2_THUNK) {
+		if (y.$ === __2_THUNK) {
 			var xRefs = x.__refs;
 			var yRefs = y.__refs;
 			var i = xRefs.length;
@@ -760,61 +766,60 @@ function _VirtualDom_diffHelp(x, y, patches, index)
 				return;
 			}
 			y.__node = y.__thunk();
-			var subPatches = [];
-			_VirtualDom_diffHelp(x.__node, y.__node, subPatches, 0);
-			subPatches.length > 0 && _VirtualDom_pushPatch(patches, __3_THUNK, index, subPatches);
+			_VirtualDom_diffHelp(x.__node, y.__node, sendToApp);
+		} else {
+			_VirtualDom_diffHelp(x.__node, y, sendToApp);
+		}
+		return;
+	}
+
+	if (y.$ === __2_THUNK) {
+		_VirtualDom_diffHelp(x, y.__thunk(), sendToApp);
+		return;
+	}
+
+	var xType = x.$;
+	var yType = y.$;
+
+	var xDom = x._;
+	var yDom = y._;
+
+	// Bail if you run into different types of nodes. Implies that the
+	// structure has changed significantly and it's not worth a diff.
+	if (xType !== yType)
+	{
+		if (xType === __2_NODE && yType === __2_KEYED_NODE)
+		{
+			y = _VirtualDom_dekey(y);
+			yType = __2_NODE;
+		}
+		else if (xType === __2_KEYED_NODE && yType === __2_NODE)
+		{
+			x = _VirtualDom_dekey(x);
+			xType = __2_NODE;
+		}
+		else
+		{
+			// TODO: Redraw instead of pushing patch
+			_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
 			return;
+		}
+	}
 
-		case __2_TAGGER:
-			// gather nested taggers
-			var xTaggers = x.__tagger;
-			var yTaggers = y.__tagger;
-			var nesting = false;
+	// Reset the counter not used during this render.
+	if (_VirtualDom_even) {
+		yDom.i1 = 0;
+	} else {
+		yDom.i0 = 0;
+	}
 
-			var xSubNode = x.__node;
-			while (xSubNode.$ === __2_TAGGER)
-			{
-				nesting = true;
-
-				typeof xTaggers !== 'object'
-					? xTaggers = [xTaggers, xSubNode.__tagger]
-					: xTaggers.push(xSubNode.__tagger);
-
-				xSubNode = xSubNode.__node;
-			}
-
-			var ySubNode = y.__node;
-			while (ySubNode.$ === __2_TAGGER)
-			{
-				nesting = true;
-
-				typeof yTaggers !== 'object'
-					? yTaggers = [yTaggers, ySubNode.__tagger]
-					: yTaggers.push(ySubNode.__tagger);
-
-				ySubNode = ySubNode.__node;
-			}
-
-			// Just bail if different numbers of taggers. This implies the
-			// structure of the virtual DOM has changed.
-			if (nesting && xTaggers.length !== yTaggers.length)
-			{
-				_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
-				return;
-			}
-
-			// check if taggers are "the same"
-			if (nesting ? !_VirtualDom_pairwiseRefEqual(xTaggers, yTaggers) : xTaggers !== yTaggers)
-			{
-				_VirtualDom_pushPatch(patches, __3_TAGGER, index, yTaggers);
-			}
-
-			// diff everything below the taggers
-			_VirtualDom_diffHelp(xSubNode, ySubNode, patches, index + 1);
-			return;
-
+	// Now we know that both nodes are the same $.
+	switch (yType)
+	{
 		case __2_TEXT:
-			if (x.__text !== y.__text)
+			// TODO: Can do optimizations like this with `x === y` to skip work
+			// when equal and we should only reset i0/i1 and update functions.
+			if (x !== y && x.__text !== y.__text)
 			{
 				_VirtualDom_pushPatch(patches, __3_TEXT, index, y.__text);
 			}
@@ -843,20 +848,6 @@ function _VirtualDom_diffHelp(x, y, patches, index)
 
 			return;
 	}
-}
-
-// assumes the incoming arrays are the same length
-function _VirtualDom_pairwiseRefEqual(as, bs)
-{
-	for (var i = 0; i < as.length; i++)
-	{
-		if (as[i] !== bs[i])
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 function _VirtualDom_diffNodes(x, y, patches, index, diffKids)
@@ -1351,15 +1342,18 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 // APPLY PATCHES
 
 
-function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, patches, eventNode)
+function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, sendToApp)
 {
-	if (patches.length === 0)
-	{
-		return rootDomNode;
-	}
+	// if (patches.length === 0)
+	// {
+	// 	return rootDomNode;
+	// }
 
-	_VirtualDom_addDomNodes(rootDomNode, oldVirtualNode, patches, eventNode);
-	return _VirtualDom_applyPatchesHelp(rootDomNode, patches);
+	// _VirtualDom_addDomNodes(rootDomNode, oldVirtualNode, patches, eventNode);
+	// return _VirtualDom_applyPatchesHelp(rootDomNode, patches);
+	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, sendToApp);
+	_VirtualDom_even = !_VirtualDom_even;
+	return newVirtualNode._.nodes[0];
 }
 
 function _VirtualDom_applyPatchesHelp(rootDomNode, patches)
@@ -1579,7 +1573,6 @@ function _VirtualDom_dekey(keyedNode)
 		__tag: keyedNode.__tag,
 		__facts: keyedNode.__facts,
 		__kids: kids,
-		__namespace: keyedNode.__namespace,
-		__descendantsCount: keyedNode.__descendantsCount
+		__namespace: keyedNode.__namespace
 	};
 }
