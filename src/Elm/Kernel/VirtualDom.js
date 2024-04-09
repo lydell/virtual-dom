@@ -781,9 +781,6 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 	var xType = x.$;
 	var yType = y.$;
 
-	var xDom = x._;
-	var yDom = y._;
-
 	// Bail if you run into different types of nodes. Implies that the
 	// structure has changed significantly and it's not worth a diff.
 	if (xType !== yType)
@@ -808,9 +805,9 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 
 	// Reset the counter not used during this render.
 	if (_VirtualDom_even) {
-		yDom.i1 = 0;
+		y._.i1 = 0;
 	} else {
-		yDom.i0 = 0;
+		y._.i0 = 0;
 	}
 
 	// Now we know that both nodes are the same $.
@@ -1568,11 +1565,14 @@ function _VirtualDom_dekey(keyedNode)
 		kids[i] = keyedKids[i].b;
 	}
 
-	return {
+	return Object.defineProperty({
 		$: __2_NODE,
 		__tag: keyedNode.__tag,
 		__facts: keyedNode.__facts,
 		__kids: kids,
 		__namespace: keyedNode.__namespace
-	};
+	}, "_", {
+		value: keyedNode._,
+		writable: true
+	});
 }
