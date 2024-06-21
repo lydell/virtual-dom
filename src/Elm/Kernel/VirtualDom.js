@@ -59,8 +59,7 @@ function _VirtualDom_wrap(object)
 			nodes: [],
 			i0: 0,
 			i1: 0
-		},
-		writable: true
+		}
 	});
 }
 
@@ -451,22 +450,7 @@ function _VirtualDom_render(vNode, eventNode)
 
 	if (tag === __2_TAGGER)
 	{
-		var subNode = vNode.__node;
-		var tagger = vNode.__tagger;
-
-		while (subNode.$ === __2_TAGGER)
-		{
-			typeof tagger !== 'object'
-				? tagger = [tagger, subNode.__tagger]
-				: tagger.push(subNode.__tagger);
-
-			subNode = subNode.__node;
-		}
-
-		var subEventRoot = { __tagger: tagger, __parent: eventNode };
-		var domNode = _VirtualDom_render(subNode, subEventRoot);
-		domNode.elm_event_node_ref = subEventRoot;
-		return domNode;
+		return _VirtualDom_render(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
 	}
 
 	if (tag === __2_CUSTOM)
@@ -697,15 +681,6 @@ function _VirtualDom_equalEvents(x, y)
 // DIFF
 
 
-// TODO: Should we do patches like in iOS?
-//
-// type Patch
-//   = At Int Patch
-//   | Batch (List Patch)
-//   | Change ...
-//
-// How could it not be better?
-//
 function _VirtualDom_diff(x, y)
 {
 	// var patches = [];
@@ -730,10 +705,10 @@ function _VirtualDom_pushPatch(patches, type, index, data)
 }
 
 
-function _VirtualDom_diffHelp(x, y, sendToApp)
+function _VirtualDom_diffHelp(x, y, eventNode)
 {
 	// Note: We can’t exit early if `x === y` because:
-	// - Event listeners may need to reference a new `sendToApp`.
+	// - Event listeners may need to reference a new `eventNode`.
 	// - .i0 or .i1 may need to be reset.
 
 	// Remember: When virtualizing already existing DOM, we can’t know
@@ -746,7 +721,7 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 	}
 
 	if (y.$ === __2_TAGGER) {
-		_VirtualDom_diffHelp(x, y.__node, function (msg) { return sendToApp(y.__tagger(msg)) });
+		_VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 		return;
 	}
 
@@ -763,19 +738,33 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 			if (same)
 			{
 				y.__node = x.__node;
+				// TODO: Still need to visit everything to reset counters and update event listeners.
 				return;
 			}
 			y.__node = y.__thunk();
-			_VirtualDom_diffHelp(x.__node, y.__node, sendToApp);
+			_VirtualDom_diffHelp(x.__node, y.__node, eventNode);
 		} else {
-			_VirtualDom_diffHelp(x.__node, y, sendToApp);
+			_VirtualDom_diffHelp(x.__node, y, eventNode);
 		}
 		return;
 	}
 
 	if (y.$ === __2_THUNK) {
-		_VirtualDom_diffHelp(x, y.__thunk(), sendToApp);
+		_VirtualDom_diffHelp(x, y.__thunk(), eventNode);
 		return;
+	}
+
+	var domNode;
+
+	// Get DOM node, increase counter, and reset the counter not used during this render.
+	if (_VirtualDom_even) {
+		domNode = x._.nodes[y._.i0];
+		y._.i0++;
+		y._.i1 = 0;
+	} else {
+		domNode = x._.nodes[y._.i1];
+		y._.i1++;
+		y._.i0 = 0;
 	}
 
 	var xType = x.$;
@@ -803,13 +792,6 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 		}
 	}
 
-	// Reset the counter not used during this render.
-	if (_VirtualDom_even) {
-		y._.i1 = 0;
-	} else {
-		y._.i0 = 0;
-	}
-
 	// Now we know that both nodes are the same $.
 	switch (yType)
 	{
@@ -818,16 +800,16 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 			// when equal and we should only reset i0/i1 and update functions.
 			if (x !== y && x.__text !== y.__text)
 			{
-				_VirtualDom_pushPatch(patches, __3_TEXT, index, y.__text);
+				domNode.replaceData(0, domNode.length, patch.__data);
 			}
 			return;
 
 		case __2_NODE:
-			_VirtualDom_diffNodes(x, y, patches, index, _VirtualDom_diffKids);
+			_VirtualDom_diffNodes(x, y, eventNode, _VirtualDom_diffKids);
 			return;
 
 		case __2_KEYED_NODE:
-			_VirtualDom_diffNodes(x, y, patches, index, _VirtualDom_diffKeyedKids);
+			_VirtualDom_diffNodes(x, y, eventNode, _VirtualDom_diffKeyedKids);
 			return;
 
 		case __2_CUSTOM:
@@ -847,7 +829,7 @@ function _VirtualDom_diffHelp(x, y, sendToApp)
 	}
 }
 
-function _VirtualDom_diffNodes(x, y, patches, index, diffKids)
+function _VirtualDom_diffNodes(x, y, eventNode, diffKids)
 {
 	// Bail if obvious indicators have changed. Implies more serious
 	// structural changes such that it's not worth it to diff.
@@ -860,7 +842,7 @@ function _VirtualDom_diffNodes(x, y, patches, index, diffKids)
 	var factsDiff = _VirtualDom_diffFacts(x.__facts, y.__facts);
 	factsDiff && _VirtualDom_pushPatch(patches, __3_FACTS, index, factsDiff);
 
-	diffKids(x, y, patches, index);
+	diffKids(x, y, eventNode);
 }
 
 
@@ -940,7 +922,7 @@ function _VirtualDom_diffFacts(x, y, category)
 // DIFF KIDS
 
 
-function _VirtualDom_diffKids(xParent, yParent, patches, index)
+function _VirtualDom_diffKids(xParent, yParent, eventNode)
 {
 	var xKids = xParent.__kids;
 	var yKids = yParent.__kids;
@@ -952,17 +934,38 @@ function _VirtualDom_diffKids(xParent, yParent, patches, index)
 
 	if (xLen > yLen)
 	{
-		_VirtualDom_pushPatch(patches, __3_REMOVE_LAST, index, {
-			__length: yLen,
-			__diff: xLen - yLen
-		});
+		// _VirtualDom_pushPatch(patches, __3_REMOVE_LAST, index, {
+		// 	__length: yLen,
+		// 	__diff: xLen - yLen
+		// });
+		var diff = xLen - yLen;
+		for (var i = 0; i < diff; i++)
+		{
+			var child = xKids[yLen];
+			var domNode = child._.nodes.splice(_VirtualDom_even ? child.i0 : child.i1, 1);
+			domNode.removeChild(domNode[0]);
+		}
 	}
 	else if (xLen < yLen)
 	{
-		_VirtualDom_pushPatch(patches, __3_APPEND, index, {
-			__length: xLen,
-			__kids: yKids
-		});
+		// _VirtualDom_pushPatch(patches, __3_APPEND, index, {
+		// 	__length: xLen,
+		// 	__kids: yKids
+		// });
+		var theEnd = domNode.childNodes[xLen];
+		for (var i = xLen; i < yKids.length; i++)
+		{
+			var child = yKids[i];
+			var domNode = _VirtualDom_render(child, eventNode);
+			domNode.insertBefore(domNode, theEnd);
+			if (_VirtualDom_even) {
+				child._.nodes.splice(child._.i0, 0, domNode);
+				child._.i0++;
+			} else {
+				child._.nodes.splice(child._.i1, 0, domNode);
+				child._.i1++;
+			}
+		}
 	}
 
 	// PAIRWISE DIFF EVERYTHING ELSE
@@ -970,8 +973,7 @@ function _VirtualDom_diffKids(xParent, yParent, patches, index)
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
 		var xKid = xKids[i];
-		_VirtualDom_diffHelp(xKid, yKids[i], patches, ++index);
-		index += xKid.__descendantsCount || 0;
+		_VirtualDom_diffHelp(xKid, yKids[i], eventNode);
 	}
 }
 
@@ -1339,7 +1341,7 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 // APPLY PATCHES
 
 
-function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, sendToApp)
+function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
 	// if (patches.length === 0)
 	// {
@@ -1348,7 +1350,7 @@ function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, s
 
 	// _VirtualDom_addDomNodes(rootDomNode, oldVirtualNode, patches, eventNode);
 	// return _VirtualDom_applyPatchesHelp(rootDomNode, patches);
-	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, sendToApp);
+	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
 	_VirtualDom_even = !_VirtualDom_even;
 	return newVirtualNode._.nodes[0];
 }
@@ -1447,11 +1449,6 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 {
 	var parentNode = domNode.parentNode;
 	var newNode = _VirtualDom_render(vNode, eventNode);
-
-	if (!newNode.elm_event_node_ref)
-	{
-		newNode.elm_event_node_ref = domNode.elm_event_node_ref;
-	}
 
 	if (parentNode && newNode !== domNode)
 	{
@@ -1572,7 +1569,6 @@ function _VirtualDom_dekey(keyedNode)
 		__kids: kids,
 		__namespace: keyedNode.__namespace
 	}, "_", {
-		value: keyedNode._,
-		writable: true
+		value: keyedNode._
 	});
 }
