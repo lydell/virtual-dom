@@ -585,6 +585,7 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 			if (oldHandler.$ === newHandler.$)
 			{
 				oldCallback.__handler = newHandler;
+				oldCallback.__eventNode = eventNode;
 				continue;
 			}
 			domNode.removeEventListener(key, oldCallback);
@@ -596,6 +597,20 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 			&& { passive: __VirtualDom_toHandlerInt(newHandler) < 2 }
 		);
 		allCallbacks[key] = oldCallback;
+	}
+}
+
+function _VirtualDom_lazyUpdateEvents(domNode, eventNode)
+{
+	var allCallbacks = domNode.elmFs;
+
+	if (allCallbacks)
+	{
+		for (var key in allCallbacks)
+		{
+			var oldCallback = allCallbacks[key];
+			oldCallback.__eventNode = eventNode;
+		}
 	}
 }
 
@@ -619,11 +634,12 @@ catch(e) {}
 // EVENT HANDLERS
 
 
-function _VirtualDom_makeCallback(eventNode, initialHandler)
+function _VirtualDom_makeCallback(initialEventNode, initialHandler)
 {
 	function callback(event)
 	{
 		var handler = callback.__handler;
+		var eventNode = callback.__eventNode;
 		var result = __Json_runHelp(handler.a, event);
 
 		if (!__Result_isOk(result))
@@ -646,27 +662,11 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 			(tag == 2 ? value.b : tag == 3 && value.__$preventDefault) && event.preventDefault(),
 			eventNode
 		);
-		var tagger;
-		var i;
-		while (tagger = currentEventNode.__tagger)
-		{
-			if (typeof tagger == 'function')
-			{
-				message = tagger(message);
-			}
-			else
-			{
-				for (var i = tagger.length; i--; )
-				{
-					message = tagger[i](message);
-				}
-			}
-			currentEventNode = currentEventNode.__parent;
-		}
 		currentEventNode(message, stopPropagation); // stopPropagation implies isSync
 	}
 
 	callback.__handler = initialHandler;
+	callback.__eventNode = initialEventNode;
 
 	return callback;
 }
@@ -859,13 +859,13 @@ function _VirtualDom_lazyVisit(y, eventNode)
 		y._.i0 = 0;
 	}
 
-	// TODO: Apply eventNode to event listeners. First do that in the regular flow, though.
 	switch (y.$)
 	{
 		case __2_TEXT:
 			return;
 
 		case __2_NODE:
+			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
 				_VirtualDom_lazyVisit(yKids[i], eventNode);
@@ -873,6 +873,7 @@ function _VirtualDom_lazyVisit(y, eventNode)
 			return;
 
 		case __2_KEYED_NODE:
+			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
 				_VirtualDom_lazyVisit(yKids[i].b, eventNode);
@@ -880,6 +881,7 @@ function _VirtualDom_lazyVisit(y, eventNode)
 			return;
 
 		case __2_CUSTOM:
+			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			return;
 	}
 }
