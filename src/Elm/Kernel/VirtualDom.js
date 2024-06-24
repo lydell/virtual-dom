@@ -772,37 +772,15 @@ function _VirtualDom_makeCallback(initialEventNode, initialHandler)
 	return callback;
 }
 
-function _VirtualDom_equalEvents(x, y)
-{
-	return x.$ == y.$ && __Json_equality(x.a, y.a);
-}
-
 
 
 // DIFF
 
 
-function _VirtualDom_diff(x, y)
+function _VirtualDom_diff(_x, y)
 {
-	// var patches = [];
-	// _VirtualDom_diffHelp(x, y, patches, 0);
-	// return patches;
 	// Hack to provide the new virtual dom node to `_VirtualDom_applyPatches` without making changes in elm/browser.
 	return y;
-}
-
-
-function _VirtualDom_pushPatch(patches, type, index, data)
-{
-	var patch = {
-		$: type,
-		__index: index,
-		__data: data,
-		__domNode: undefined,
-		__eventNode: undefined
-	};
-	patches.push(patch);
-	return patch;
 }
 
 
@@ -1018,75 +996,6 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 
 
-// DIFF FACTS
-
-
-function _VirtualDom_diffFacts(x, y, category)
-{
-	var diff;
-
-	// look for changes and removals
-	for (var xKey in x)
-	{
-		if (xKey === 'a__1_STYLE' || xKey === 'a__1_EVENT' || xKey === 'a__1_ATTR' || xKey === 'a__1_ATTR_NS')
-		{
-			var subDiff = _VirtualDom_diffFacts(x[xKey], y[xKey] || {}, xKey);
-			if (subDiff)
-			{
-				diff = diff || {};
-				diff[xKey] = subDiff;
-			}
-			continue;
-		}
-
-		// remove if not in the new facts
-		if (!(xKey in y))
-		{
-			diff = diff || {};
-			diff[xKey] =
-				!category
-					? (typeof x[xKey] === 'string' ? '' : null)
-					:
-				(category === 'a__1_STYLE')
-					? ''
-					:
-				(category === 'a__1_EVENT' || category === 'a__1_ATTR')
-					? undefined
-					:
-				{ __namespace: x[xKey].__namespace, __value: undefined };
-
-			continue;
-		}
-
-		var xValue = x[xKey];
-		var yValue = y[xKey];
-
-		// reference equal, so don't worry about it
-		if (xValue === yValue && xKey !== 'value' && xKey !== 'checked'
-			|| category === 'a__1_EVENT' && _VirtualDom_equalEvents(xValue, yValue))
-		{
-			continue;
-		}
-
-		diff = diff || {};
-		diff[xKey] = yValue;
-	}
-
-	// add new stuff
-	for (var yKey in y)
-	{
-		if (!(yKey in x))
-		{
-			diff = diff || {};
-			diff[yKey] = y[yKey];
-		}
-	}
-
-	return diff;
-}
-
-
-
 // DIFF KIDS
 
 
@@ -1102,10 +1011,6 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 
 	if (xLen > yLen)
 	{
-		// _VirtualDom_pushPatch(patches, __3_REMOVE_LAST, index, {
-		// 	__length: yLen,
-		// 	__diff: xLen - yLen
-		// });
 		var diff = xLen - yLen;
 		for (var i = 0; i < diff; i++)
 		{
@@ -1116,10 +1021,6 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 	}
 	else if (xLen < yLen)
 	{
-		// _VirtualDom_pushPatch(patches, __3_APPEND, index, {
-		// 	__length: xLen,
-		// 	__kids: yKids
-		// });
 		var theEnd = domNode.childNodes[xLen];
 		for (var i = xLen; i < yKids.length; i++)
 		{
@@ -1513,20 +1414,14 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 // APPLY PATCHES
 
 
-function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
+function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
-	// if (patches.length === 0)
-	// {
-	// 	return rootDomNode;
-	// }
-
-	// _VirtualDom_addDomNodes(rootDomNode, oldVirtualNode, patches, eventNode);
-	// return _VirtualDom_applyPatchesHelp(rootDomNode, patches);
 	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
 	_VirtualDom_even = !_VirtualDom_even;
 	return newVirtualNode._.nodes[0];
 }
 
+// TODO: Remove
 function _VirtualDom_applyPatchesHelp(rootDomNode, patches)
 {
 	for (var i = 0; i < patches.length; i++)
@@ -1542,6 +1437,7 @@ function _VirtualDom_applyPatchesHelp(rootDomNode, patches)
 	return rootDomNode;
 }
 
+// TODO: Remove
 function _VirtualDom_applyPatch(domNode, patch)
 {
 	switch (patch.$)
