@@ -405,16 +405,10 @@ function _VirtualDom_organizeFacts(factList)
 		var key = entry.__key;
 		var value = entry.__value;
 
-		if (tag === 'a__1_PROP')
-		{
-			(key === 'className')
-				? _VirtualDom_addClass(facts, key, __Json_unwrap(value))
-				: facts[key] = __Json_unwrap(value);
-
-			continue;
-		}
-
 		var subFacts = facts[tag] || (facts[tag] = {});
+		(tag === 'a__1_PROP' && key === 'className')
+			? _VirtualDom_addClass(subFacts, key, __Json_unwrap(value))
+			:
 		(tag === 'a__1_ATTR' && key === 'class')
 			? _VirtualDom_addClass(subFacts, key, value)
 			: subFacts[key] = value;
@@ -456,7 +450,7 @@ function _VirtualDom_render(vNode, eventNode)
 	if (tag === __2_CUSTOM)
 	{
 		var domNode = vNode.__render(vNode.__model);
-		_VirtualDom_applyFacts(domNode, eventNode, vNode.__facts);
+		_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
 		return domNode;
 	}
 
@@ -471,7 +465,7 @@ function _VirtualDom_render(vNode, eventNode)
 		domNode.addEventListener('click', _VirtualDom_divertHrefToApp(domNode));
 	}
 
-	_VirtualDom_applyFacts(domNode, eventNode, vNode.__facts);
+	_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
 
 	for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 	{
@@ -486,25 +480,31 @@ function _VirtualDom_render(vNode, eventNode)
 // APPLY FACTS
 
 
-function _VirtualDom_applyFacts(domNode, eventNode, facts)
+function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 {
-	for (var key in facts)
+	if (facts.a__1_STYLE !== undefined || prevFacts.a__1_STYLE !== undefined)
 	{
-		var value = facts[key];
+		_VirtualDom_applyStyles(domNode, prevFacts.a__1_STYLE || {}, facts.a1 || {});
+	}
 
-		key === 'a__1_STYLE'
-			? _VirtualDom_applyStyles(domNode, value)
-			:
-		key === 'a__1_EVENT'
-			? _VirtualDom_applyEvents(domNode, eventNode, value)
-			:
-		key === 'a__1_ATTR'
-			? _VirtualDom_applyAttrs(domNode, value)
-			:
-		key === 'a__1_ATTR_NS'
-			? _VirtualDom_applyAttrsNS(domNode, value)
-			:
-		((key !== 'value' && key !== 'checked') || domNode[key] !== value) && (domNode[key] = value);
+	if (facts.a__1_EVENT !== undefined || prevFacts.a__1_EVENT !== undefined)
+	{
+		_VirtualDom_applyEvents(domNode, eventNode, facts.a__1_EVENT || {});
+	}
+
+	if (facts.a__1_PROP !== undefined || prevFacts.a__1_PROP !== undefined)
+	{
+		_VirtualDom_applyProps(domNode, prevFacts.a__1_PROP || {}, facts.a__1_PROP || {});
+	}
+
+	if (facts.a__1_ATTR !== undefined || prevFacts.a__1_ATTR !== undefined)
+	{
+		_VirtualDom_applyAttrs(domNode, prevFacts.a__1_ATTR || {}, facts.a__1_ATTR || {});
+	}
+
+	if (facts.a__1_ATTR_NS !== undefined || prevFacts.a__1_ATTR_NS !== undefined)
+	{
+		_VirtualDom_applyAttrsNS(domNode, prevFacts.a__1_ATTR_NS || {}, facts.a__1_ATTR_NS || {});
 	}
 }
 
@@ -513,13 +513,79 @@ function _VirtualDom_applyFacts(domNode, eventNode, facts)
 // APPLY STYLES
 
 
-function _VirtualDom_applyStyles(domNode, styles)
+function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 {
-	var domNodeStyle = domNode.style;
-
 	for (var key in styles)
 	{
-		domNodeStyle[key] = styles[key];
+		var value = styles[key];
+		if (value !== prevStyles[key])
+		{
+			// Support `Html.Attributes.style "borderRadius" "5px"`.
+			// `.setProperty` requires "border-radius" with a dash.
+			// TODO: Measure if `key[0] === '-'` is faster. (And is correct?)
+			if (key in domNode.style)
+			{
+				domNode.style[key] = value;
+			}
+			else
+			{
+				domNode.style.setProperty(key, value);
+			}
+		}
+	}
+
+	for (key in prevStyles)
+	{
+		if (!(key in styles))
+		{
+			if (key in domNode.style)
+			{
+				domNode.style[key] = "";
+			}
+			else
+			{
+				domNode.style.removeProperty(key);
+			}
+		}
+	}
+}
+
+
+
+// APPLY PROPS
+
+function _VirtualDom_applyProps(domNode, prevProps, props)
+{
+	for (var key in props)
+	{
+		var value = props[key];
+		// `value`, `checked`, `selected` and `selectedIndex` can all change via
+		// user interactions, so for those it’s important to compare to the
+		// actual DOM value. Other properties, such as `type`, is normalized, so
+		// a bad `type` property causes re-assignment every re-render. If this
+		// becomes a performance problem you could just set the
+		// normalized/correct value from the start.
+		// As an example, `.type = "foo"` is normalized to `"text"`.
+		// For the above reasons, we compare against the actual DOM node, rather
+		// than `prevProps`.
+		if (value !== domNode[key])
+		{
+			domNode[key] = value;
+		}
+	}
+
+	var defaultDomNode = undefined;
+
+	for (key in prevProps)
+	{
+		if (!(key in props))
+		{
+			if (!defaultDomNode)
+			{
+				defaultDomNode = _VirtualDom_doc.createElementNS(domNode.namespaceURI, domNode.localName);
+			}
+			domNode[key] = defaultDomNode[key];
+		}
 	}
 }
 
@@ -528,14 +594,23 @@ function _VirtualDom_applyStyles(domNode, styles)
 // APPLY ATTRS
 
 
-function _VirtualDom_applyAttrs(domNode, attrs)
+function _VirtualDom_applyAttrs(domNode, prevAttrs, attrs)
 {
 	for (var key in attrs)
 	{
 		var value = attrs[key];
-		typeof value !== 'undefined'
-			? domNode.setAttribute(key, value)
-			: domNode.removeAttribute(key);
+		if (value !== prevAttrs[key])
+		{
+			domNode.setAttribute(key, value);
+		}
+	}
+
+	for (key in prevAttrs)
+	{
+		if (!(key in attrs))
+		{
+			domNode.removeAttribute(key);
+		}
 	}
 }
 
@@ -544,17 +619,35 @@ function _VirtualDom_applyAttrs(domNode, attrs)
 // APPLY NAMESPACED ATTRS
 
 
-function _VirtualDom_applyAttrsNS(domNode, nsAttrs)
+function _VirtualDom_applyAttrsNS(domNode, prevNsAttrs, nsAttrs)
 {
 	for (var key in nsAttrs)
 	{
 		var pair = nsAttrs[key];
 		var namespace = pair.__namespace;
 		var value = pair.__value;
+		var previous = prevNsAttrs[key];
+		if (!previous)
+		{
+			domNode.setAttributeNS(namespace, key, value);
+		}
+		else if (previous.__namespace !== namespace)
+		{
+			domNode.removeAttributeNS(previous.__namespace, key);
+			domNode.setAttributeNS(namespace, key, value);
+		}
+		else if (previous.__value !== value)
+		{
+			domNode.setAttributeNS(namespace, key, value);
+		}
+	}
 
-		typeof value !== 'undefined'
-			? domNode.setAttributeNS(namespace, key, value)
-			: domNode.removeAttributeNS(namespace, key);
+	for (key in prevNsAttrs)
+	{
+		if (!(key in nsAttrs))
+		{
+			domNode.removeAttributeNS(prevNsAttrs[key].__namespace, key);
+		}
 	}
 }
 
@@ -597,6 +690,14 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 			&& { passive: __VirtualDom_toHandlerInt(newHandler) < 2 }
 		);
 		allCallbacks[key] = oldCallback;
+	}
+
+	for (key in allCallbacks)
+	{
+		if (!(key in events))
+		{
+			domNode.removeEventListener(key, allCallbacks[key]);
+		}
 	}
 }
 
@@ -718,17 +819,21 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	// So it’s important to not redraw fully when just the new virtual dom node
 	// is a `map` or `lazy` or `Keyed`, to avoid unnecessary DOM changes on startup.
 
-	while (x.$ === __2_TAGGER) {
+	while (x.$ === __2_TAGGER)
+	{
 		x = x.__node;
 	}
 
-	if (y.$ === __2_TAGGER) {
+	if (y.$ === __2_TAGGER)
+	{
 		_VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 		return;
 	}
 
-	if (x.$ === __2_THUNK) {
-		if (y.$ === __2_THUNK) {
+	if (x.$ === __2_THUNK)
+	{
+		if (y.$ === __2_THUNK)
+		{
 			var xRefs = x.__refs;
 			var yRefs = y.__refs;
 			var i = xRefs.length;
@@ -749,13 +854,16 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			}
 			y.__node = y.__thunk();
 			_VirtualDom_diffHelp(x.__node, y.__node, eventNode);
-		} else {
+		}
+		else
+		{
 			_VirtualDom_diffHelp(x.__node, y, eventNode);
 		}
 		return;
 	}
 
-	if (y.$ === __2_THUNK) {
+	if (y.$ === __2_THUNK)
+	{
 		_VirtualDom_diffHelp(x, y.__thunk(), eventNode);
 		return;
 	}
@@ -763,11 +871,14 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	var domNode;
 
 	// Get DOM node, increase counter, and reset the counter not used during this render.
-	if (_VirtualDom_even) {
+	if (_VirtualDom_even)
+	{
 		domNode = x._.nodes[y._.i0];
 		y._.i0++;
 		y._.i1 = 0;
-	} else {
+	}
+	else
+	{
 		domNode = x._.nodes[y._.i1];
 		y._.i1++;
 		y._.i0 = 0;
@@ -822,8 +933,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				return;
 			}
 
-			var factsDiff = _VirtualDom_diffFacts(x.__facts, y.__facts);
-			factsDiff && _VirtualDom_pushPatch(patches, __3_FACTS, index, factsDiff);
+			_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
 
 			var patch = y.__diff(x.__model, y.__model);
 			patch && patch(domNode);
@@ -851,11 +961,14 @@ function _VirtualDom_quickVisit(y, eventNode)
 	var domNode;
 
 	// Get DOM node, increase counter, and reset the counter not used during this render.
-	if (_VirtualDom_even) {
+	if (_VirtualDom_even)
+	{
 		domNode = x._.nodes[y._.i0];
 		y._.i0++;
 		y._.i1 = 0;
-	} else {
+	}
+	else
+	{
 		domNode = x._.nodes[y._.i1];
 		y._.i1++;
 		y._.i0 = 0;
@@ -898,8 +1011,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 		return;
 	}
 
-	var factsDiff = _VirtualDom_diffFacts(x.__facts, y.__facts);
-	factsDiff && _VirtualDom_pushPatch(patches, __3_FACTS, index, factsDiff);
+	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
 
 	diffKids(x, y, eventNode);
 }
@@ -909,7 +1021,6 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 // DIFF FACTS
 
 
-// TODO: Basically steal the approach from safe-virtual-dom.
 function _VirtualDom_diffFacts(x, y, category)
 {
 	var diff;
@@ -1015,10 +1126,13 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 			var child = yKids[i];
 			var domNode = _VirtualDom_render(child, eventNode);
 			domNode.insertBefore(domNode, theEnd);
-			if (_VirtualDom_even) {
+			if (_VirtualDom_even)
+			{
 				child._.nodes.splice(child._.i0, 0, domNode);
 				child._.i0++;
-			} else {
+			}
+			else
+			{
 				child._.nodes.splice(child._.i1, 0, domNode);
 				child._.i1++;
 			}
@@ -1514,9 +1628,12 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 	}
 
 	// `.i0` or `.i1` has already been incremented at this point, so remove 1.
-	if (_VirtualDom_even) {
+	if (_VirtualDom_even)
+	{
 		x._.nodes[y._.i0 - 1] = newNode;
-	} else {
+	}
+	else
+	{
 		x._.nodes[y._.i1 - 1] = newNode;
 	}
 }
