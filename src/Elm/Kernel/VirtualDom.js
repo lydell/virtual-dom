@@ -1589,6 +1589,8 @@ function _VirtualDom_applyPatchReorderEndInsertsHelp(endInserts, patch)
 
 
 // TODO: Need to handle <script> in <body> nicely, so that they don’t cause complete re-renders.
+// TODO: Handle namespaces.
+// TODO: Handle link click listeners (https://github.com/elm/browser/issues/105).
 function _VirtualDom_virtualize(node)
 {
 	// TEXT NODES
