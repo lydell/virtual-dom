@@ -1036,6 +1036,7 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 // KEYED DIFF
 
 
+// TODO: Keyed kids.
 function _VirtualDom_diffKeyedKids(xParent, yParent, patches, rootIndex)
 {
 	var localPatches = [];
