@@ -815,7 +815,6 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
 			return;
 
-		// TODO: Custom.
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
@@ -827,7 +826,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			factsDiff && _VirtualDom_pushPatch(patches, __3_FACTS, index, factsDiff);
 
 			var patch = y.__diff(x.__model, y.__model);
-			patch && _VirtualDom_pushPatch(patches, __3_CUSTOM, index, patch);
+			patch && patch(domNode);
 
 			return;
 	}
