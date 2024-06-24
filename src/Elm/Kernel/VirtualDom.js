@@ -786,8 +786,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		}
 		else
 		{
-			// TODO: Redraw instead of pushing patch
-			_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
+			_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
 			return;
 		}
 	}
@@ -805,17 +804,17 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			return;
 
 		case __2_NODE:
-			_VirtualDom_diffNodes(x, y, eventNode, _VirtualDom_diffKids);
+			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids);
 			return;
 
 		case __2_KEYED_NODE:
-			_VirtualDom_diffNodes(x, y, eventNode, _VirtualDom_diffKeyedKids);
+			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
 			return;
 
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
-				_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
+				_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
 				return;
 			}
 
@@ -829,13 +828,13 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	}
 }
 
-function _VirtualDom_diffNodes(x, y, eventNode, diffKids)
+function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 {
 	// Bail if obvious indicators have changed. Implies more serious
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		_VirtualDom_pushPatch(patches, __3_REDRAW, index, y);
+		_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
 		return;
 	}
 
@@ -1454,7 +1453,13 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
 	}
-	return newNode;
+
+	// `.i0` or `.i1` has already been incremented at this point, so remove 1.
+	if (_VirtualDom_even) {
+		x._.nodes[y._.i0 - 1] = newNode;
+	} else {
+		x._.nodes[y._.i1 - 1] = newNode;
+	}
 }
 
 
