@@ -905,9 +905,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 // DIFF FACTS
 
 
-// TODO Instead of creating a new diff object, it's possible to just test if
-// there *is* a diff. During the actual patch, do the diff again and make the
-// modifications directly. This way, there's no new allocations. Worth it?
+// TODO: Basically steal the approach from safe-virtual-dom.
 function _VirtualDom_diffFacts(x, y, category)
 {
 	var diff;
