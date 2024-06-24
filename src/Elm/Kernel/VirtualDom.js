@@ -738,7 +738,11 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			if (same)
 			{
 				y.__node = x.__node;
-				// TODO: Still need to visit everything to reset counters and update event listeners.
+				// We still need to visit every node inside the lazy node, to
+				// make sure that the event listeners get the current
+				// `eventNode`, and to increase and reset counters. This is
+				// cheaper than calling `view`, diffing and rendering at least.
+				_VirtualDom_lazyVisit(y, eventNode);
 				return;
 			}
 			y.__node = y.__thunk();
@@ -811,6 +815,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
 			return;
 
+		// TODO: Custom.
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
@@ -824,6 +829,57 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			var patch = y.__diff(x.__model, y.__model);
 			patch && _VirtualDom_pushPatch(patches, __3_CUSTOM, index, patch);
 
+			return;
+	}
+}
+
+function _VirtualDom_lazyVisit(y, eventNode)
+{
+	switch (y.$)
+	{
+		case __2_TAGGER:
+			_VirtualDom_lazyVisit(y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
+			return;
+
+		case __2_THUNK:
+			_VirtualDom_lazyVisit(y.__node, eventNode);
+			return;
+	}
+
+	var domNode;
+
+	// Get DOM node, increase counter, and reset the counter not used during this render.
+	if (_VirtualDom_even) {
+		domNode = x._.nodes[y._.i0];
+		y._.i0++;
+		y._.i1 = 0;
+	} else {
+		domNode = x._.nodes[y._.i1];
+		y._.i1++;
+		y._.i0 = 0;
+	}
+
+	// TODO: Apply eventNode to event listeners. First do that in the regular flow, though.
+	switch (y.$)
+	{
+		case __2_TEXT:
+			return;
+
+		case __2_NODE:
+			for (var i = 0; i < y.kids.length; i++)
+			{
+				_VirtualDom_lazyVisit(yKids[i], eventNode);
+			}
+			return;
+
+		case __2_KEYED_NODE:
+			for (var i = 0; i < y.kids.length; i++)
+			{
+				_VirtualDom_lazyVisit(yKids[i].b, eventNode);
+			}
+			return;
+
+		case __2_CUSTOM:
 			return;
 	}
 }
