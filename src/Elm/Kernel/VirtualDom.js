@@ -707,9 +707,11 @@ function _VirtualDom_pushPatch(patches, type, index, data)
 
 function _VirtualDom_diffHelp(x, y, eventNode)
 {
-	// Note: We can’t exit early if `x === y` because:
-	// - Event listeners may need to reference a new `eventNode`.
-	// - .i0 or .i1 may need to be reset.
+	if (x === y)
+	{
+		_VirtualDom_quickVisit(y, eventNode);
+		return;
+	}
 
 	// Remember: When virtualizing already existing DOM, we can’t know
 	// where `map` and `lazy` nodes should be, and which ones are `Keyed`.
@@ -742,7 +744,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// make sure that the event listeners get the current
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
-				_VirtualDom_lazyVisit(y, eventNode);
+				_VirtualDom_quickVisit(y, eventNode);
 				return;
 			}
 			y.__node = y.__thunk();
@@ -799,9 +801,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	switch (yType)
 	{
 		case __2_TEXT:
-			// TODO: Can do optimizations like this with `x === y` to skip work
-			// when equal and we should only reset i0/i1 and update functions.
-			if (x !== y && x.__text !== y.__text)
+			if (x.__text !== y.__text)
 			{
 				domNode.replaceData(0, domNode.length, patch.__data);
 			}
@@ -832,16 +832,19 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	}
 }
 
-function _VirtualDom_lazyVisit(y, eventNode)
+// When we know that a node does not need updating, just quickly visit its children to:
+// - Update event listeners’ reference to the current `eventNode`.
+// - Reset .i0 or .i1.
+function _VirtualDom_quickVisit(y, eventNode)
 {
 	switch (y.$)
 	{
 		case __2_TAGGER:
-			_VirtualDom_lazyVisit(y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
+			_VirtualDom_quickVisit(y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 			return;
 
 		case __2_THUNK:
-			_VirtualDom_lazyVisit(y.__node, eventNode);
+			_VirtualDom_quickVisit(y.__node, eventNode);
 			return;
 	}
 
@@ -867,7 +870,7 @@ function _VirtualDom_lazyVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
-				_VirtualDom_lazyVisit(yKids[i], eventNode);
+				_VirtualDom_quickVisit(yKids[i], eventNode);
 			}
 			return;
 
@@ -875,7 +878,7 @@ function _VirtualDom_lazyVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
-				_VirtualDom_lazyVisit(yKids[i].b, eventNode);
+				_VirtualDom_quickVisit(yKids[i].b, eventNode);
 			}
 			return;
 
