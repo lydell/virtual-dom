@@ -1057,6 +1057,14 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 // TODO: Keyed kids.
 function _VirtualDom_diffKeyedKids(xParent, yParent, patches, rootIndex)
 {
+	// Temporary implementation:
+	_VirtualDom_diffKids(
+		{...xParent, __kids: xParent.__kids.map(kid => kid.b)},
+		{...yParent, __kids: yParent.__kids.map(kid => kid.b)},
+		eventNode
+	);
+	return;
+
 	var localPatches = [];
 
 	var changes = {}; // Dict String Entry
