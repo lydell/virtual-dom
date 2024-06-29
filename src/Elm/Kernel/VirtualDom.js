@@ -1491,7 +1491,6 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 	_VirtualDom_virtualizeAnchors.length = 0;
 
 	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
-	console.log("render", oldVirtualNode, newVirtualNode);
 	_VirtualDom_even = !_VirtualDom_even;
 	return newVirtualNode._.__domNodes[0];
 }
