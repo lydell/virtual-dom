@@ -1480,6 +1480,16 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 
 function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
+	if (_VirtualDom_divertHrefToApp)
+	{
+		for (var i = 0; i < _VirtualDom_virtualizeAnchors.length; i++)
+		{
+			var node = _VirtualDom_virtualizeAnchors[i];
+			node.addEventListener("click", _VirtualDom_divertHrefToApp(node));
+		}
+	}
+	_VirtualDom_virtualizeAnchors.length = 0;
+
 	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
 	console.log("render", oldVirtualNode, newVirtualNode);
 	_VirtualDom_even = !_VirtualDom_even;
@@ -1658,10 +1668,24 @@ function _VirtualDom_applyPatchReorderEndInsertsHelp(endInserts, patch)
 }
 
 
-// TODO: Need to handle <script> in <body> nicely, so that they don’t cause complete re-renders.
-// TODO: Handle namespaces.
-// TODO: Handle link click listeners (https://github.com/elm/browser/issues/105).
 function _VirtualDom_virtualize(node)
+{
+	var vNode = _VirtualDom_virtualizeHelp(node);
+	if (vNode)
+	{
+		return vNode;
+	}
+
+	// Backwards compatibility: Elm has always supported mounting onto any node,
+	// even comment nodes.
+	vNode = _VirtualDom_text('');
+	vNode._.__domNodes.push(node);
+	return vNode;
+}
+
+var _VirtualDom_virtualizeAnchors = [];
+
+function _VirtualDom_virtualizeHelp(node)
 {
 	// TEXT NODES
 
@@ -1677,13 +1701,24 @@ function _VirtualDom_virtualize(node)
 
 	if (node.nodeType !== 1)
 	{
-		var vNode = _VirtualDom_text('');
-		vNode._.__domNodes.push(node);
-		return vNode;
+		return undefined;
 	}
 
 
 	// ELEMENT NODES
+
+	var tag = node.localName;
+
+	// It’s common to put script tags in the body, and it’s not possible
+	// to render a meaningful script tag using Elm, so skip them.
+	// The only other element I can think of that you might add to the body
+	// is a noscript tag.
+	switch (tag)
+	{
+		case "script":
+		case "noscript":
+			return undefined;
+	}
 
 	var attrList = __List_Nil;
 	var attrs = node.attributes;
@@ -1692,19 +1727,39 @@ function _VirtualDom_virtualize(node)
 		var attr = attrs[i];
 		var name = attr.name;
 		var value = attr.value;
-		attrList = __List_Cons( A2(_VirtualDom_attribute, name, value), attrList );
+		attrList = __List_Cons(
+			attr.namespaceURI
+			 	? A3(_VirtualDom_attributeNS, attr.namespaceURI, attr.name, attr.value)
+				: A2(_VirtualDom_attribute, name, value),
+			attrList
+		);
 	}
 
-	var tag = node.tagName.toLowerCase();
+	var namespace =
+		node.namespaceURI === "http://www.w3.org/1999/xhtml"
+			? undefined
+			: node.namespaceURI;
 	var kidList = __List_Nil;
 	var kids = node.childNodes;
 
 	for (var i = kids.length; i--; )
 	{
-		kidList = __List_Cons(_VirtualDom_virtualize(kids[i]), kidList);
+		var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
+		if (kidNode)
+		{
+			kidList = __List_Cons(kidNode, kidList);
+		}
 	}
 
-	var vNode = A3(_VirtualDom_node, tag, attrList, kidList);
+	// `_VirtualDom_divertHrefToApp` is not set when this function is run,
+	// so we need to store the anchor nodes and add the click event listener later.
+	// This is a hack to avoid making changes in elm/browser.
+	if (node.localName === "a")
+	{
+		_VirtualDom_virtualizeAnchors.push(node);
+	}
+
+	var vNode = A4(_VirtualDom_nodeNS, namespace, tag, attrList, kidList);
 	vNode._.__domNodes.push(node);
 	return vNode;
 }
