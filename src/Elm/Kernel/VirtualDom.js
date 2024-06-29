@@ -1073,6 +1073,14 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 	var xLen = xKids.length;
 	var yLen = yKids.length;
 
+	// PAIRWISE DIFF COMMON KIDS
+
+	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
+	{
+		var xKid = xKids[i];
+		_VirtualDom_diffHelp(xKid, yKids[i], eventNode);
+	}
+
 	// FIGURE OUT IF THERE ARE INSERTS OR REMOVALS
 
 	if (xLen > yLen)
@@ -1094,14 +1102,6 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 			var domNode = _VirtualDom_render(child, eventNode);
 			parentDomNode.appendChild(domNode);
 		}
-	}
-
-	// PAIRWISE DIFF EVERYTHING ELSE
-
-	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
-	{
-		var xKid = xKids[i];
-		_VirtualDom_diffHelp(xKid, yKids[i], eventNode);
 	}
 }
 
