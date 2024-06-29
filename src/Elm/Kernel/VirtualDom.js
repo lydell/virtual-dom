@@ -56,6 +56,7 @@ function _VirtualDom_wrap(object)
 	// to not break people who do, why not?
 	return Object.defineProperty(object, "_", {
 		value: {
+			// TODO: Make these short!
 			nodes: [],
 			i0: 0,
 			i1: 0
@@ -439,7 +440,9 @@ function _VirtualDom_render(vNode, eventNode)
 
 	if (tag === __2_TEXT)
 	{
-		return _VirtualDom_doc.createTextNode(vNode.__text);
+		var domNode = _VirtualDom_doc.createTextNode(vNode.__text);
+		_VirtualDom_storeDomNode(vNode, domNode)
+		return domNode;
 	}
 
 	if (tag === __2_TAGGER)
@@ -451,6 +454,7 @@ function _VirtualDom_render(vNode, eventNode)
 	{
 		var domNode = vNode.__render(vNode.__model);
 		_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
+		_VirtualDom_storeDomNode(vNode, domNode);
 		return domNode;
 	}
 
@@ -472,7 +476,23 @@ function _VirtualDom_render(vNode, eventNode)
 		_VirtualDom_appendChild(domNode, _VirtualDom_render(tag === __2_NODE ? kids[i] : kids[i].b, eventNode));
 	}
 
+	_VirtualDom_storeDomNode(vNode, domNode);
+
 	return domNode;
+}
+
+function _VirtualDom_storeDomNode(vNode, domNode)
+{
+	if (_VirtualDom_even)
+	{
+		vNode._.nodes.splice(vNode._.i0, 0, domNode);
+		vNode._.i0++;
+	}
+	else
+	{
+		vNode._.nodes.splice(vNode._.i1, 0, domNode);
+		vNode._.i1++;
+	}
 }
 
 
@@ -966,7 +986,7 @@ function _VirtualDom_quickVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
-				_VirtualDom_quickVisit(yKids[i], eventNode);
+				_VirtualDom_quickVisit(y.kids[i], eventNode);
 			}
 			return;
 
@@ -974,12 +994,52 @@ function _VirtualDom_quickVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.kids.length; i++)
 			{
-				_VirtualDom_quickVisit(yKids[i].b, eventNode);
+				_VirtualDom_quickVisit(y.kids[i].b, eventNode);
 			}
 			return;
 
 		case __2_CUSTOM:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
+			return;
+	}
+}
+
+// When we remove a node, quickly visit its children to remove dom nodes from the virtual nodes.
+function _VirtualDom_removeVisit(x)
+{
+	switch (y.$)
+	{
+		case __2_TAGGER:
+			_VirtualDom_removeVisit(x.__node);
+			return;
+
+		case __2_THUNK:
+			_VirtualDom_removeVisit(x.__node);
+			return;
+	}
+
+	child._.nodes.splice(_VirtualDom_even ? x._.i0 : x._.i1, 1);
+
+	switch (x.$)
+	{
+		case __2_TEXT:
+			return;
+
+		case __2_NODE:
+			for (var i = 0; i < x.kids.length; i++)
+			{
+				_VirtualDom_removeVisit(x.kids[i], eventNode);
+			}
+			return;
+
+		case __2_KEYED_NODE:
+			for (var i = 0; i < x.kids.length; i++)
+			{
+				_VirtualDom_removeVisit(x.kids[i].b, eventNode);
+			}
+			return;
+
+		case __2_CUSTOM:
 			return;
 	}
 }
@@ -1020,8 +1080,9 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 		for (var i = 0; i < diff; i++)
 		{
 			var child = xKids[yLen];
-			var domNode = child._.nodes.splice(_VirtualDom_even ? child.i0 : child.i1, 1);
-			parentDomNode.removeChild(domNode[0]);
+			var domNode = child._.nodes[_VirtualDom_even ? child._.i0 : child._.i1];
+			parentDomNode.removeChild(domNode);
+			_VirtualDom_removeVisit(child);
 		}
 	}
 	else if (xLen < yLen)
@@ -1031,16 +1092,6 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 			var child = yKids[i];
 			var domNode = _VirtualDom_render(child, eventNode);
 			parentDomNode.appendChild(domNode);
-			if (_VirtualDom_even)
-			{
-				child._.nodes.splice(child._.i0, 0, domNode);
-				child._.i0++;
-			}
-			else
-			{
-				child._.nodes.splice(child._.i1, 0, domNode);
-				child._.i1++;
-			}
 		}
 	}
 
