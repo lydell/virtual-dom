@@ -1589,13 +1589,20 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 		parentNode.replaceChild(newNode, domNode);
 	}
 
-	// `.i` or `.j` has already been incremented at this point, so remove 1.
+	// `.i` or `.j` has already been incremented at this point, twice:
+	// - Once in _VirtualDom_diffHelp
+	// - Once in _VirtualDom_render
+	// It’s only supposed to be incremented once, so decrement it.
+	// Also, remove 1 when re-assigning the new DOM node, since we want
+	// to replace the one we just rendered, not the next one that we have advanced to.
 	if (_VirtualDom_even)
 	{
+		vNode._.i--;
 		vNode._.__domNodes[vNode._.i - 1] = newNode;
 	}
 	else
 	{
+		vNode._.j--;
 		vNode._.__domNodes[vNode._.j - 1] = newNode;
 	}
 }
