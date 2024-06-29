@@ -1085,10 +1085,9 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 
 	if (xLen > yLen)
 	{
-		var diff = xLen - yLen;
-		for (var i = 0; i < diff; i++)
+		for (var i = yLen; i < xLen; i++)
 		{
-			var x = xKids[yLen];
+			var x = xKids[i];
 			var domNode = x._.__domNodes[_VirtualDom_even ? x._.i : x._.j];
 			parentDomNode.removeChild(domNode);
 			_VirtualDom_removeVisit(x);
