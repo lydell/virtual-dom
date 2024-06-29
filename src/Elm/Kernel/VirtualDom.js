@@ -1029,14 +1029,14 @@ function _VirtualDom_removeVisit(x)
 		case __2_NODE:
 			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[i], eventNode);
+				_VirtualDom_removeVisit(x.__kids[i]);
 			}
 			return;
 
 		case __2_KEYED_NODE:
 			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[i].b, eventNode);
+				_VirtualDom_removeVisit(x.__kids[i].b);
 			}
 			return;
 
