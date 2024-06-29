@@ -875,12 +875,14 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	if (_VirtualDom_even)
 	{
 		domNode = y._.__domNodes[y._.i];
+		x._.i++;
 		y._.i++;
 		y._.j = 0;
 	}
 	else
 	{
 		domNode = y._.__domNodes[y._.j];
+		x._.j++;
 		y._.j++;
 		y._.i = 0;
 	}
@@ -968,12 +970,14 @@ function _VirtualDom_quickVisit(y, eventNode)
 	if (_VirtualDom_even)
 	{
 		domNode = y._.__domNodes[y._.i];
+		x._.i++;
 		y._.i++;
 		y._.j = 0;
 	}
 	else
 	{
 		domNode = y._.__domNodes[y._.j];
+		x._.j++;
 		y._.j++;
 		y._.i = 0;
 	}
@@ -1019,6 +1023,7 @@ function _VirtualDom_removeVisit(x)
 			return;
 	}
 
+	// This line is the reason we need to increment .i and .j also for the old virtual nodes.
 	x._.__domNodes.splice(_VirtualDom_even ? x._.i : x._.j, 1);
 
 	switch (x.$)
@@ -1088,18 +1093,18 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 		var diff = xLen - yLen;
 		for (var i = 0; i < diff; i++)
 		{
-			var child = xKids[yLen];
-			var domNode = child._.__domNodes[_VirtualDom_even ? child._.i : child._.j];
+			var x = xKids[yLen];
+			var domNode = x._.__domNodes[_VirtualDom_even ? x._.i : x._.j];
 			parentDomNode.removeChild(domNode);
-			_VirtualDom_removeVisit(child);
+			_VirtualDom_removeVisit(x);
 		}
 	}
 	else if (xLen < yLen)
 	{
 		for (var i = xLen; i < yLen; i++)
 		{
-			var child = yKids[i];
-			var domNode = _VirtualDom_render(child, eventNode);
+			var y = yKids[i];
+			var domNode = _VirtualDom_render(y, eventNode);
 			parentDomNode.appendChild(domNode);
 		}
 	}
