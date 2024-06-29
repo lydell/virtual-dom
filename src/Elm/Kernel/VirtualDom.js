@@ -407,8 +407,10 @@ function _VirtualDom_organizeFacts(factList)
 		var value = entry.__value;
 
 		var subFacts = facts[tag] || (facts[tag] = {});
-		(tag === 'a__1_PROP' && key === 'className')
-			? _VirtualDom_addClass(subFacts, key, __Json_unwrap(value))
+		(tag === 'a__1_PROP')
+			? (key === 'className')
+				? _VirtualDom_addClass(subFacts, key, __Json_unwrap(value))
+				: subFacts[key] = __Json_unwrap(value)
 			:
 		(tag === 'a__1_ATTR' && key === 'class')
 			? _VirtualDom_addClass(subFacts, key, value)
