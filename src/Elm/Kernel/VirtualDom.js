@@ -985,17 +985,17 @@ function _VirtualDom_quickVisit(y, eventNode)
 
 		case __2_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var i = 0; i < y.kids.length; i++)
+			for (var i = 0; i < y.__kids.length; i++)
 			{
-				_VirtualDom_quickVisit(y.kids[i], eventNode);
+				_VirtualDom_quickVisit(y.__kids[i], eventNode);
 			}
 			return;
 
 		case __2_KEYED_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var i = 0; i < y.kids.length; i++)
+			for (var i = 0; i < y.__kids.length; i++)
 			{
-				_VirtualDom_quickVisit(y.kids[i].b, eventNode);
+				_VirtualDom_quickVisit(y.__kids[i].b, eventNode);
 			}
 			return;
 
@@ -1008,7 +1008,7 @@ function _VirtualDom_quickVisit(y, eventNode)
 // When we remove a node, quickly visit its children to remove dom nodes from the virtual nodes.
 function _VirtualDom_removeVisit(x)
 {
-	switch (y.$)
+	switch (x.$)
 	{
 		case __2_TAGGER:
 			_VirtualDom_removeVisit(x.__node);
@@ -1019,7 +1019,7 @@ function _VirtualDom_removeVisit(x)
 			return;
 	}
 
-	child._.__domNodes.splice(_VirtualDom_even ? x._.i : x._.j, 1);
+	x._.__domNodes.splice(_VirtualDom_even ? x._.i : x._.j, 1);
 
 	switch (x.$)
 	{
@@ -1027,16 +1027,16 @@ function _VirtualDom_removeVisit(x)
 			return;
 
 		case __2_NODE:
-			for (var i = 0; i < x.kids.length; i++)
+			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.kids[i], eventNode);
+				_VirtualDom_removeVisit(x.__kids[i], eventNode);
 			}
 			return;
 
 		case __2_KEYED_NODE:
-			for (var i = 0; i < x.kids.length; i++)
+			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.kids[i].b, eventNode);
+				_VirtualDom_removeVisit(x.__kids[i].b, eventNode);
 			}
 			return;
 
