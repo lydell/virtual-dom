@@ -1077,8 +1077,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
-		var xKid = xKids[i];
-		_VirtualDom_diffHelp(xKid, yKids[i], eventNode);
+		_VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
 	}
 
 	// FIGURE OUT IF THERE ARE INSERTS OR REMOVALS
@@ -1099,7 +1098,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 		{
 			var y = yKids[i];
 			var domNode = _VirtualDom_render(y, eventNode);
-			parentDomNode.appendChild(domNode);
+			_VirtualDom_appendChild(parentDomNode, domNode);
 		}
 	}
 }
