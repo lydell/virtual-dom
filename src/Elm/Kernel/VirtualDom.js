@@ -56,10 +56,9 @@ function _VirtualDom_wrap(object)
 	// to not break people who do, why not?
 	return Object.defineProperty(object, "_", {
 		value: {
-			// TODO: Make these short!
-			nodes: [],
-			i0: 0,
-			i1: 0
+			__domNodes: [],
+			i: 0,
+			j: 0,
 		}
 	});
 }
@@ -487,13 +486,13 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 {
 	if (_VirtualDom_even)
 	{
-		vNode._.nodes.splice(vNode._.i0, 0, domNode);
-		vNode._.i0++;
+		vNode._.__domNodes.splice(vNode._.i, 0, domNode);
+		vNode._.i++;
 	}
 	else
 	{
-		vNode._.nodes.splice(vNode._.i1, 0, domNode);
-		vNode._.i1++;
+		vNode._.__domNodes.splice(vNode._.j, 0, domNode);
+		vNode._.j++;
 	}
 }
 
@@ -868,22 +867,22 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		return;
 	}
 
-	y._.nodes = x._.nodes;
+	y._.__domNodes = x._.__domNodes;
 
 	var domNode;
 
 	// Get DOM node, increase counter, and reset the counter not used during this render.
 	if (_VirtualDom_even)
 	{
-		domNode = y._.nodes[y._.i0];
-		y._.i0++;
-		y._.i1 = 0;
+		domNode = y._.__domNodes[y._.i];
+		y._.i++;
+		y._.j = 0;
 	}
 	else
 	{
-		domNode = y._.nodes[y._.i1];
-		y._.i1++;
-		y._.i0 = 0;
+		domNode = y._.__domNodes[y._.j];
+		y._.j++;
+		y._.i = 0;
 	}
 
 	var xType = x.$;
@@ -946,8 +945,8 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 // When we know that a node does not need updating, just quickly visit its children to:
 // - Update event listeners’ reference to the current `eventNode`.
-// - Reset .i0 or .i1.
-// - Transfer .nodes from x to y.
+// - Reset .i or .j.
+// - Transfer .__domNodes from x to y.
 function _VirtualDom_quickVisit(y, eventNode)
 {
 	switch (y.$)
@@ -961,22 +960,22 @@ function _VirtualDom_quickVisit(y, eventNode)
 			return;
 	}
 
-	y._.nodes = x._.nodes;
+	y._.__domNodes = x._.__domNodes;
 
 	var domNode;
 
 	// Get DOM node, increase counter, and reset the counter not used during this render.
 	if (_VirtualDom_even)
 	{
-		domNode = y._.nodes[y._.i0];
-		y._.i0++;
-		y._.i1 = 0;
+		domNode = y._.__domNodes[y._.i];
+		y._.i++;
+		y._.j = 0;
 	}
 	else
 	{
-		domNode = y._.nodes[y._.i1];
-		y._.i1++;
-		y._.i0 = 0;
+		domNode = y._.__domNodes[y._.j];
+		y._.j++;
+		y._.i = 0;
 	}
 
 	switch (y.$)
@@ -1020,7 +1019,7 @@ function _VirtualDom_removeVisit(x)
 			return;
 	}
 
-	child._.nodes.splice(_VirtualDom_even ? x._.i0 : x._.i1, 1);
+	child._.__domNodes.splice(_VirtualDom_even ? x._.i : x._.j, 1);
 
 	switch (x.$)
 	{
@@ -1082,7 +1081,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 		for (var i = 0; i < diff; i++)
 		{
 			var child = xKids[yLen];
-			var domNode = child._.nodes[_VirtualDom_even ? child._.i0 : child._.i1];
+			var domNode = child._.__domNodes[_VirtualDom_even ? child._.i : child._.j];
 			parentDomNode.removeChild(domNode);
 			_VirtualDom_removeVisit(child);
 		}
@@ -1483,8 +1482,9 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
 	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
+	console.log("render", oldVirtualNode, newVirtualNode);
 	_VirtualDom_even = !_VirtualDom_even;
-	return newVirtualNode._.nodes[0];
+	return newVirtualNode._.__domNodes[0];
 }
 
 // TODO: Remove
@@ -1589,14 +1589,14 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 		parentNode.replaceChild(newNode, domNode);
 	}
 
-	// `.i0` or `.i1` has already been incremented at this point, so remove 1.
+	// `.i` or `.j` has already been incremented at this point, so remove 1.
 	if (_VirtualDom_even)
 	{
-		vNode._.nodes[vNode._.i0 - 1] = newNode;
+		vNode._.__domNodes[vNode._.i - 1] = newNode;
 	}
 	else
 	{
-		vNode._.nodes[vNode._.i1 - 1] = newNode;
+		vNode._.__domNodes[vNode._.j - 1] = newNode;
 	}
 }
 
@@ -1664,7 +1664,7 @@ function _VirtualDom_virtualize(node)
 	if (node.nodeType === 3)
 	{
 		var vNode = _VirtualDom_text(node.textContent);
-		vNode._.nodes.push(node);
+		vNode._.__domNodes.push(node);
 		return vNode;
 	}
 
@@ -1674,7 +1674,7 @@ function _VirtualDom_virtualize(node)
 	if (node.nodeType !== 1)
 	{
 		var vNode = _VirtualDom_text('');
-		vNode._.nodes.push(node);
+		vNode._.__domNodes.push(node);
 		return vNode;
 	}
 
@@ -1701,7 +1701,7 @@ function _VirtualDom_virtualize(node)
 	}
 
 	var vNode = A3(_VirtualDom_node, tag, attrList, kidList);
-	vNode._.nodes.push(node);
+	vNode._.__domNodes.push(node);
 	return vNode;
 }
 
