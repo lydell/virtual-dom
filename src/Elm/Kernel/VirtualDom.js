@@ -916,7 +916,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		case __2_TEXT:
 			if (x.__text !== y.__text)
 			{
-				domNode.replaceData(0, domNode.length, patch.__data);
+				domNode.replaceData(0, domNode.length, y.__text);
 			}
 			return;
 
