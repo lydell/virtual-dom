@@ -991,7 +991,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
 
-	diffKids(x, y, eventNode);
+	diffKids(domNode, x, y, eventNode);
 }
 
 
@@ -999,7 +999,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 // DIFF KIDS
 
 
-function _VirtualDom_diffKids(xParent, yParent, eventNode)
+function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 {
 	var xKids = xParent.__kids;
 	var yKids = yParent.__kids;
@@ -1016,17 +1016,16 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 		{
 			var child = xKids[yLen];
 			var domNode = child._.nodes.splice(_VirtualDom_even ? child.i0 : child.i1, 1);
-			domNode.removeChild(domNode[0]);
+			parentDomNode.removeChild(domNode[0]);
 		}
 	}
 	else if (xLen < yLen)
 	{
-		var theEnd = domNode.childNodes[xLen];
-		for (var i = xLen; i < yKids.length; i++)
+		for (var i = xLen; i < yLen; i++)
 		{
 			var child = yKids[i];
 			var domNode = _VirtualDom_render(child, eventNode);
-			domNode.insertBefore(domNode, theEnd);
+			parentDomNode.appendChild(domNode);
 			if (_VirtualDom_even)
 			{
 				child._.nodes.splice(child._.i0, 0, domNode);
@@ -1055,10 +1054,11 @@ function _VirtualDom_diffKids(xParent, yParent, eventNode)
 
 
 // TODO: Keyed kids.
-function _VirtualDom_diffKeyedKids(xParent, yParent, patches, rootIndex)
+function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 {
 	// Temporary implementation:
 	_VirtualDom_diffKids(
+		parentDomNode,
 		{...xParent, __kids: xParent.__kids.map(kid => kid.b)},
 		{...yParent, __kids: yParent.__kids.map(kid => kid.b)},
 		eventNode
@@ -1534,11 +1534,11 @@ function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 	// `.i0` or `.i1` has already been incremented at this point, so remove 1.
 	if (_VirtualDom_even)
 	{
-		x._.nodes[y._.i0 - 1] = newNode;
+		vNode._.nodes[vNode._.i0 - 1] = newNode;
 	}
 	else
 	{
-		x._.nodes[y._.i1 - 1] = newNode;
+		vNode._.nodes[vNode._.i1 - 1] = newNode;
 	}
 }
 
@@ -1605,7 +1605,9 @@ function _VirtualDom_virtualize(node)
 
 	if (node.nodeType === 3)
 	{
-		return _VirtualDom_text(node.textContent);
+		var vNode = _VirtualDom_text(node.textContent);
+		vNode._.nodes.push(node);
+		return vNode;
 	}
 
 
@@ -1613,7 +1615,9 @@ function _VirtualDom_virtualize(node)
 
 	if (node.nodeType !== 1)
 	{
-		return _VirtualDom_text('');
+		var vNode = _VirtualDom_text('');
+		vNode._.nodes.push(node);
+		return vNode;
 	}
 
 
@@ -1637,7 +1641,10 @@ function _VirtualDom_virtualize(node)
 	{
 		kidList = __List_Cons(_VirtualDom_virtualize(kids[i]), kidList);
 	}
-	return A3(_VirtualDom_node, tag, attrList, kidList);
+
+	var vNode = A3(_VirtualDom_node, tag, attrList, kidList);
+	vNode._.nodes.push(node);
+	return vNode;
 }
 
 function _VirtualDom_dekey(keyedNode)
