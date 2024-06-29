@@ -948,7 +948,6 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 // When we know that a node does not need updating, just quickly visit its children to:
 // - Update event listeners’ reference to the current `eventNode`.
 // - Reset .i or .j.
-// - Transfer .__domNodes from x to y.
 function _VirtualDom_quickVisit(y, eventNode)
 {
 	switch (y.$)
@@ -962,22 +961,18 @@ function _VirtualDom_quickVisit(y, eventNode)
 			return;
 	}
 
-	y._.__domNodes = x._.__domNodes;
-
 	var domNode;
 
 	// Get DOM node, increase counter, and reset the counter not used during this render.
 	if (_VirtualDom_even)
 	{
 		domNode = y._.__domNodes[y._.i];
-		x._.i++;
 		y._.i++;
 		y._.j = 0;
 	}
 	else
 	{
 		domNode = y._.__domNodes[y._.j];
-		x._.j++;
 		y._.j++;
 		y._.i = 0;
 	}
