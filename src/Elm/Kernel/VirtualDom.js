@@ -689,7 +689,7 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 		if (!newHandler)
 		{
 			domNode.removeEventListener(key, oldCallback);
-			allCallbacks[key] = undefined;
+			delete allCallbacks[key];
 			continue;
 		}
 
@@ -718,6 +718,7 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 		if (!(key in events))
 		{
 			domNode.removeEventListener(key, allCallbacks[key]);
+			delete allCallbacks[key];
 		}
 	}
 }
