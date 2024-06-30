@@ -1783,6 +1783,75 @@ function _VirtualDom_applyPatchReorderEndInsertsHelp(endInserts, patch)
 }
 
 
+// These are things in the elm/html package that are set using DOM properties
+// rather than attributes. We need to know if we should virtualize to properties
+// or attributes. This isn’t perfect, but should avoid most unnecessary re-renders.
+var _VirtualDom_properties = {
+	accept: 'accept',
+	'accept-charset': 'acceptCharset',
+	accesskey: 'accessKey',
+	action: 'action',
+	align: 'align',
+	alt: 'alt',
+	autocomplete: 'autoComplete',
+	autofocus: 'autoFocus',
+	autoplay: 'autoPlay',
+	checked: 'checked',
+	cite: 'cite',
+	class: 'className',
+	contenteditable: 'contentEditable',
+	controls: 'controls',
+	coords: 'coords',
+	default: 'default',
+	dir: 'dir',
+	disabled: 'disabled',
+	download: 'download',
+	dropzone: 'dropzone',
+	enctype: 'encType',
+	headers: 'headers',
+	hidden: 'hidden',
+	href: 'href',
+	hreflang: 'hrefLang',
+	for: 'htmlFor',
+	id: 'id',
+	ismap: 'isMap',
+	kind: 'kind',
+	label: 'label',
+	lang: 'lang',
+	loop: 'loop',
+	max: 'max',
+	method: 'method',
+	min: 'min',
+	multiple: 'multiple',
+	name: 'name',
+	novalidate: 'noValidate',
+	pattern: 'pattern',
+	ping: 'ping',
+	placeholder: 'placeholder',
+	poster: 'poster',
+	preload: 'preload',
+	readonly: 'readOnly',
+	required: 'required',
+	reversed: 'reversed',
+	sandbox: 'sandbox',
+	scope: 'scope',
+	selected: 'selected',
+	shape: 'shape',
+	spellcheck: 'spellCheck',
+	src: 'src',
+	srcdoc: 'srcDoc',
+	srclang: 'srcLang',
+	start: 'start',
+	step: 'step',
+	target: 'target',
+	title: 'title',
+	type: 'type',
+	usemap: 'useMap',
+	value: 'value',
+	wrap: 'wrap'
+};
+
+
 function _VirtualDom_virtualize(node)
 {
 	var vNode = _VirtualDom_virtualizeHelp(node);
@@ -1842,7 +1911,11 @@ function _VirtualDom_virtualizeHelp(node)
 		var attr = attrs[i];
 		var name = attr.name;
 		var value = attr.value;
+		var property = _VirtualDom_properties[name];
 		attrList = __List_Cons(
+			property
+				? A2(_VirtualDom_property, property, node[property])
+				:
 			attr.namespaceURI
 			 	? A3(_VirtualDom_attributeNS, attr.namespaceURI, attr.name, attr.value)
 				: A2(_VirtualDom_attribute, name, value),
