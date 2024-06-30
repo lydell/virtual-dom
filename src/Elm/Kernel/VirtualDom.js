@@ -1599,7 +1599,15 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 	_VirtualDom_virtualizeAnchors.length = 0;
 
 	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
+
 	_VirtualDom_even = !_VirtualDom_even;
+
+	while (newVirtualNode.$ === __2_TAGGER || newVirtualNode.$ === __2_THUNK)
+	{
+		newVirtualNode = newVirtualNode.__node;
+	}
+	// The root element can only ever have exactly one DOM node, since building
+	// an element that contains itself is impossible.
 	return newVirtualNode._.__domNodes[0];
 }
 
