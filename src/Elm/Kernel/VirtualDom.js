@@ -1188,7 +1188,14 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 		{
 			var x = xKids[i];
 			var domNode = x._.__domNodes[_VirtualDom_even ? x._.i : x._.j];
-			parentDomNode.removeChild(domNode);
+			// An extension might have (re-)moved the element, so we can’t just
+			// call `parentDomNode.removeChild(domNode)`. That throws an error if
+			// the node is not a child of `parentDomNode`.
+			var parentNode = domNode.parentNode;
+			if (parentNode)
+			{
+				parentNode.removeChild(domNode);
+			}
 			_VirtualDom_removeVisit(x);
 		}
 	}
