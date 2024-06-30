@@ -54,7 +54,7 @@ function _VirtualDom_wrap(object)
 	// Add a non-enumerable property to not break Elm's equality checks.
 	// You aren’t supposed to compare virtual nodes, but since it’s possible
 	// to not break people who do, why not?
-	return Object.defineProperty(object, "_", {
+	return Object.defineProperty(object, '_', {
 		value: {
 			__domNodes: [],
 			i: 0,
@@ -482,6 +482,51 @@ function _VirtualDom_render(vNode, eventNode)
 	return domNode;
 }
 
+// Like `_VirtualDom_render`, but:
+// - Assumes that we have already gone through diffing.
+// - Only re-renders text nodes and font tags.
+function _VirtualDom_renderTranslated(vNode, eventNode)
+{
+	var tag = vNode.$;
+
+	if (tag === __2_THUNK)
+	{
+		return _VirtualDom_renderTranslated(vNode.__node, eventNode);
+	}
+
+	if (tag === __2_TEXT)
+	{
+		var domNode = _VirtualDom_doc.createTextNode(vNode.__text);
+		_VirtualDom_storeDomNodeTranslated(vNode, domNode)
+		return domNode;
+	}
+
+	if (tag === __2_TAGGER)
+	{
+		return _VirtualDom_renderTranslated(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
+	}
+
+	if ((tag === __2_NODE || tag === __2_KEYED_NODE) && vNode.__tag === 'font')
+	{
+		var domNode = vNode.__namespace
+			? _VirtualDom_doc.createElementNS(vNode.__namespace, vNode.__tag)
+			: _VirtualDom_doc.createElement(vNode.__tag);
+
+		_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
+
+		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
+		{
+			_VirtualDom_appendChild(domNode, _VirtualDom_render(tag === __2_NODE ? kids[i] : kids[i].b, eventNode));
+		}
+
+		_VirtualDom_storeDomNodeTranslated(vNode, domNode);
+
+		return domNode;
+	}
+
+	return vNode._.__domNodes[_VirtualDom_even ? vNode._.i - 1 : vNode._.j - 1];
+}
+
 function _VirtualDom_storeDomNode(vNode, domNode)
 {
 	if (_VirtualDom_even)
@@ -493,6 +538,21 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 	{
 		vNode._.__domNodes.splice(vNode._.j, 0, domNode);
 		vNode._.j++;
+	}
+}
+
+// Like `_VirtualDom_storeDomNode`, but assumes that we have already gone
+// through diffing, and increased counters. This means that we should replace
+// the “previous” DOM node.
+function _VirtualDom_storeDomNodeTranslated(vNode, domNode)
+{
+	if (_VirtualDom_even)
+	{
+		vNode._.__domNodes[vNode._.i - 1] = domNode;
+	}
+	else
+	{
+		vNode._.__domNodes[vNode._.j - 1] = domNode;
 	}
 }
 
@@ -561,7 +621,7 @@ function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 		{
 			if (key in domNode.style)
 			{
-				domNode.style[key] = "";
+				domNode.style[key] = '';
 			}
 			else
 			{
@@ -811,7 +871,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	if (x === y)
 	{
 		_VirtualDom_quickVisit(y, eventNode);
-		return;
+		return false;
 	}
 
 	// Remember: When virtualizing already existing DOM, we can’t know
@@ -826,8 +886,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 	if (y.$ === __2_TAGGER)
 	{
-		_VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
-		return;
+		return _VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 	}
 
 	if (x.$ === __2_THUNK)
@@ -850,22 +909,20 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
 				_VirtualDom_quickVisit(y, eventNode);
-				return;
+				return false;
 			}
 			y.__node = y.__thunk();
-			_VirtualDom_diffHelp(x.__node, y.__node, eventNode);
+			return _VirtualDom_diffHelp(x.__node, y.__node, eventNode);
 		}
 		else
 		{
-			_VirtualDom_diffHelp(x.__node, y, eventNode);
+			return _VirtualDom_diffHelp(x.__node, y, eventNode);
 		}
-		return;
 	}
 
 	if (y.$ === __2_THUNK)
 	{
-		_VirtualDom_diffHelp(x, y.__thunk(), eventNode);
-		return;
+		return _VirtualDom_diffHelp(x, y.__thunk(), eventNode);
 	}
 
 	y._.__domNodes = x._.__domNodes;
@@ -908,7 +965,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		else
 		{
 			_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
-			return;
+			return false;
 		}
 	}
 
@@ -918,17 +975,22 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		case __2_TEXT:
 			if (x.__text !== y.__text)
 			{
+				// Text replaced or changed by translation plugins.
+				if (!domNode.parentNode || domNode.data !== y.__text)
+				{
+					return true;
+				}
 				domNode.replaceData(0, domNode.length, y.__text);
 			}
-			return;
+			return false;
 
 		case __2_NODE:
 			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids);
-			return;
+			return false;
 
 		case __2_KEYED_NODE:
 			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
-			return;
+			return false;
 
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
@@ -942,7 +1004,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			var patch = y.__diff(x.__model, y.__model);
 			patch && patch(domNode);
 
-			return;
+			return false;
 	}
 }
 
@@ -1058,7 +1120,38 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
 
-	diffKids(domNode, x, y, eventNode);
+	var translated = diffKids(domNode, x, y, eventNode);
+
+	if (translated)
+	{
+		for (var i = domNode.childNodes.length - 1; i >= 0; i--)
+		{
+			var child = domNode.childNodes[i];
+			// Remove all text nodes, and font tags (Google Translate).
+			if (child.nodeType === 3 || child.localName === 'font')
+			{
+				domNode.removeChild(child);
+			}
+		}
+
+		for (var current = domNode.firstChild, i = 0; i < y.__kids.length; i++)
+		{
+			var kid = y.__kids[i];
+			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
+			// Re-render text nodes and font tags. (It returns the already
+			// existing DOM node for the rest.) Then make sure everything is in
+			// the correct order.
+			var child = _VirtualDom_renderTranslated(vNode, eventNode);
+			if (child === current)
+			{
+				current = current.nextSibling;
+			}
+			else
+			{
+				domNode.insertBefore(child, current);
+			}
+		}
+	}
 }
 
 
@@ -1074,11 +1167,17 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 	var xLen = xKids.length;
 	var yLen = yKids.length;
 
+	var translated = false;
+
 	// PAIRWISE DIFF COMMON KIDS
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
-		_VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
+		var thisTranslated = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
+		if (thisTranslated)
+		{
+			translated = true;
+		}
 	}
 
 	// FIGURE OUT IF THERE ARE INSERTS OR REMOVALS
@@ -1102,6 +1201,8 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 			_VirtualDom_appendChild(parentDomNode, domNode);
 		}
 	}
+
+	return translated;
 }
 
 
@@ -1485,7 +1586,7 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 		for (var i = 0; i < _VirtualDom_virtualizeAnchors.length; i++)
 		{
 			var node = _VirtualDom_virtualizeAnchors[i];
-			node.addEventListener("click", _VirtualDom_divertHrefToApp(node));
+			node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
 		}
 	}
 	_VirtualDom_virtualizeAnchors.length = 0;
@@ -1714,8 +1815,8 @@ function _VirtualDom_virtualizeHelp(node)
 	// is a noscript tag.
 	switch (tag)
 	{
-		case "script":
-		case "noscript":
+		case 'script':
+		case 'noscript':
 			return undefined;
 	}
 
@@ -1735,7 +1836,7 @@ function _VirtualDom_virtualizeHelp(node)
 	}
 
 	var namespace =
-		node.namespaceURI === "http://www.w3.org/1999/xhtml"
+		node.namespaceURI === 'http://www.w3.org/1999/xhtml'
 			? undefined
 			: node.namespaceURI;
 	var kidList = __List_Nil;
@@ -1753,7 +1854,7 @@ function _VirtualDom_virtualizeHelp(node)
 	// `_VirtualDom_divertHrefToApp` is not set when this function is run,
 	// so we need to store the anchor nodes and add the click event listener later.
 	// This is a hack to avoid making changes in elm/browser.
-	if (node.localName === "a")
+	if (node.localName === 'a')
 	{
 		_VirtualDom_virtualizeAnchors.push(node);
 	}
@@ -1779,7 +1880,7 @@ function _VirtualDom_dekey(keyedNode)
 		__facts: keyedNode.__facts,
 		__kids: kids,
 		__namespace: keyedNode.__namespace
-	}, "_", {
+	}, '_', {
 		value: keyedNode._
 	});
 }
