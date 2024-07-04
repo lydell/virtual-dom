@@ -859,13 +859,6 @@ function _VirtualDom_makeCallback(initialEventNode, initialHandler)
 // DIFF
 
 
-function _VirtualDom_diff(_x, y)
-{
-	// Hack to provide the new virtual dom node to `_VirtualDom_applyPatches` without making changes in elm/browser.
-	return y;
-}
-
-
 function _VirtualDom_diffHelp(x, y, eventNode)
 {
 	if (x === y)
@@ -1586,31 +1579,6 @@ function _VirtualDom_addDomNodesHelp(domNode, vNode, patches, i, low, high, even
 // APPLY PATCHES
 
 
-function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
-{
-	if (_VirtualDom_divertHrefToApp)
-	{
-		for (var i = 0; i < _VirtualDom_virtualizeAnchors.length; i++)
-		{
-			var node = _VirtualDom_virtualizeAnchors[i];
-			node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
-		}
-	}
-	_VirtualDom_virtualizeAnchors.length = 0;
-
-	_VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
-
-	_VirtualDom_even = !_VirtualDom_even;
-
-	while (newVirtualNode.$ === __2_TAGGER || newVirtualNode.$ === __2_THUNK)
-	{
-		newVirtualNode = newVirtualNode.__node;
-	}
-	// The root element can only ever have exactly one DOM node, since building
-	// an element that contains itself is impossible.
-	return newVirtualNode._.__domNodes[0];
-}
-
 // TODO: Remove
 function _VirtualDom_applyPatchesHelp(rootDomNode, patches)
 {
@@ -1867,8 +1835,6 @@ function _VirtualDom_virtualize(node)
 	return vNode;
 }
 
-var _VirtualDom_virtualizeAnchors = [];
-
 function _VirtualDom_virtualizeHelp(node)
 {
 	// TEXT NODES
@@ -1939,12 +1905,9 @@ function _VirtualDom_virtualizeHelp(node)
 		}
 	}
 
-	// `_VirtualDom_divertHrefToApp` is not set when this function is run,
-	// so we need to store the anchor nodes and add the click event listener later.
-	// This is a hack to avoid making changes in elm/browser.
-	if (node.localName === 'a')
+	if (_VirtualDom_divertHrefToApp && node.localName === 'a')
 	{
-		_VirtualDom_virtualizeAnchors.push(node);
+		node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
 	}
 
 	var vNode = A4(_VirtualDom_nodeNS, namespace, tag, attrList, kidList);
