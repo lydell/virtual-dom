@@ -927,6 +927,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	{
 		domNode = y._.__domNodes[y._.i];
 		x._.i++;
+		x._.j = 0;
 		y._.i++;
 		y._.j = 0;
 	}
@@ -934,6 +935,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	{
 		domNode = y._.__domNodes[y._.j];
 		x._.j++;
+		x._.i = 0;
 		y._.j++;
 		y._.i = 0;
 	}
