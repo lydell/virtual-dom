@@ -949,7 +949,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			if (x.__text !== y.__text)
 			{
 				// Text replaced or changed by translation plugins.
-				if (!domNode.parentNode || domNode.data !== y.__text)
+				if (!domNode.parentNode || domNode.data !== x.__text)
 				{
 					return true;
 				}
