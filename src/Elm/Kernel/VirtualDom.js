@@ -17,8 +17,11 @@ import VirtualDom exposing (toHandlerInt)
 // HELPERS
 
 
-// Flips between true and false every render.
-var _VirtualDom_even = true;
+// Increases by 1 before every render. Used to know if the DOM node index
+// on each virtual node needs to be reset.
+// Even if you render 10 000 times per second, this counter won't become
+// too big until after 50 000 years.
+var _VirtualDom_renderCount = Number.MIN_SAFE_INTEGER;
 
 var _VirtualDom_divertHrefToApp;
 
@@ -57,8 +60,8 @@ function _VirtualDom_wrap(object)
 	return Object.defineProperty(object, '_', {
 		value: {
 			__domNodes: [],
-			i: 0,
-			j: 0,
+			__renderedAt: Number.MIN_SAFE_INTEGER,
+			i: 0
 		}
 	});
 }
@@ -524,21 +527,18 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 		return domNode;
 	}
 
-	return vNode._.__domNodes[_VirtualDom_even ? vNode._.i - 1 : vNode._.j - 1];
+	return vNode._.__domNodes[vNode._.i - 1];
 }
 
 function _VirtualDom_storeDomNode(vNode, domNode)
 {
-	if (_VirtualDom_even)
+	if (vNode._.__renderedAt !== _VirtualDom_renderCount)
 	{
-		vNode._.__domNodes.splice(vNode._.i, 0, domNode);
-		vNode._.i++;
+		vNode._.i = 0;
+		vNode._.__renderedAt = _VirtualDom_renderCount;
 	}
-	else
-	{
-		vNode._.__domNodes.splice(vNode._.j, 0, domNode);
-		vNode._.j++;
-	}
+	vNode._.__domNodes.splice(vNode._.i, 0, domNode);
+	vNode._.i++;
 }
 
 // Like `_VirtualDom_storeDomNode`, but assumes that we have already gone
@@ -546,14 +546,7 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 // the “previous” DOM node.
 function _VirtualDom_storeDomNodeTranslated(vNode, domNode)
 {
-	if (_VirtualDom_even)
-	{
-		vNode._.__domNodes[vNode._.i - 1] = domNode;
-	}
-	else
-	{
-		vNode._.__domNodes[vNode._.j - 1] = domNode;
-	}
+	vNode._.__domNodes[vNode._.i - 1] = domNode;
 }
 
 
@@ -922,22 +915,26 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 	var domNode;
 
-	// Get DOM node, increase counter, and reset the counter not used during this render.
-	if (_VirtualDom_even)
+	// Get DOM node, increase counters, but reset if not from this render.
+	if (x._.__renderedAt === _VirtualDom_renderCount)
 	{
-		domNode = y._.__domNodes[y._.i];
 		x._.i++;
-		x._.j = 0;
-		y._.i++;
-		y._.j = 0;
 	}
 	else
 	{
-		domNode = y._.__domNodes[y._.j];
-		x._.j++;
-		x._.i = 0;
-		y._.j++;
-		y._.i = 0;
+		x._.i = 1;
+		x._.__renderedAt = _VirtualDom_renderCount;
+	}
+	if (y._.__renderedAt === _VirtualDom_renderCount)
+	{
+		domNode = y._.__domNodes[y._.i];
+		y._.i++;
+	}
+	else
+	{
+		domNode = y._.__domNodes[0];
+		y._.i = 1;
+		y._.__renderedAt = _VirtualDom_renderCount;
 	}
 
 	var xType = x.$;
@@ -1005,7 +1002,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 // When we know that a node does not need updating, just quickly visit its children to:
 // - Update event listeners’ reference to the current `eventNode`.
-// - Reset .i or .j.
+// - Increase or reset `.i`.
 function _VirtualDom_quickVisit(y, eventNode)
 {
 	switch (y.$)
@@ -1021,18 +1018,17 @@ function _VirtualDom_quickVisit(y, eventNode)
 
 	var domNode;
 
-	// Get DOM node, increase counter, and reset the counter not used during this render.
-	if (_VirtualDom_even)
+	// Get DOM node, increase counter, but reset it if not from this render.
+	if (y._.__renderedAt === _VirtualDom_renderCount)
 	{
 		domNode = y._.__domNodes[y._.i];
 		y._.i++;
-		y._.j = 0;
 	}
 	else
 	{
-		domNode = y._.__domNodes[y._.j];
-		y._.j++;
-		y._.i = 0;
+		domNode = y._.__domNodes[0];
+		y._.i = 1;
+		y._.__renderedAt = _VirtualDom_renderCount;
 	}
 
 	switch (y.$)
@@ -1063,21 +1059,37 @@ function _VirtualDom_quickVisit(y, eventNode)
 }
 
 // When we remove a node, quickly visit its children to remove dom nodes from the virtual nodes.
-function _VirtualDom_removeVisit(x)
+function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 {
 	switch (x.$)
 	{
 		case __2_TAGGER:
-			_VirtualDom_removeVisit(x.__node);
+			_VirtualDom_removeVisit(x.__node, shouldRemoveFromDom);
 			return;
 
 		case __2_THUNK:
-			_VirtualDom_removeVisit(x.__node);
+			_VirtualDom_removeVisit(x.__node, shouldRemoveFromDom);
 			return;
 	}
 
-	// This line is the reason we need to increment .i and .j also for the old virtual nodes.
-	x._.__domNodes.splice(_VirtualDom_even ? x._.i : x._.j, 1);
+	// This is the reason we need to increment .i also for the old virtual nodes.
+	if (x._.__renderedAt !== _VirtualDom_renderCount)
+	{
+		x._.i = 0;
+		x._.__renderedAt = _VirtualDom_renderCount;
+	}
+	if (shouldRemoveFromDom) {
+		var domNode = x._.__domNodes[x._.i];
+		// An extension might have (re-)moved the element, so we can’t just
+		// call `parentDomNode.removeChild(domNode)`. That throws an error if
+		// the node is not a child of `parentDomNode`.
+		var parentNode = domNode.parentNode;
+		if (parentNode)
+		{
+			parentNode.removeChild(domNode);
+		}
+	}
+	x._.__domNodes.splice(x._.i, 1);
 
 	switch (x.$)
 	{
@@ -1087,14 +1099,14 @@ function _VirtualDom_removeVisit(x)
 		case __2_NODE:
 			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[i]);
+				_VirtualDom_removeVisit(x.__kids[i], false);
 			}
 			return;
 
 		case __2_KEYED_NODE:
 			for (var i = 0; i < x.__kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[i].b);
+				_VirtualDom_removeVisit(x.__kids[i].b, false);
 			}
 			return;
 
@@ -1181,17 +1193,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 	{
 		for (var i = yLen; i < xLen; i++)
 		{
-			var x = xKids[i];
-			var domNode = x._.__domNodes[_VirtualDom_even ? x._.i : x._.j];
-			// An extension might have (re-)moved the element, so we can’t just
-			// call `parentDomNode.removeChild(domNode)`. That throws an error if
-			// the node is not a child of `parentDomNode`.
-			var parentNode = domNode.parentNode;
-			if (parentNode)
-			{
-				parentNode.removeChild(domNode);
-			}
-			_VirtualDom_removeVisit(x);
+			_VirtualDom_removeVisit(xKids[i], true);
 		}
 	}
 	else if (xLen < yLen)
@@ -1675,20 +1677,12 @@ function _VirtualDom_applyPatch(domNode, patch)
 
 function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
 {
-	// `.i` or `.j` has already been incremented at this point, in `_VirtualDom_diffHelp`.
+	// `.i` has already been incremented at this point, in `_VirtualDom_diffHelp`.
 	// Go back to the current node, and remove it.
 	// The `_VirtualDom_render` call below will insert the new node at the same position,
-	// and advance `.i` or `.j` again.
-	if (_VirtualDom_even)
-	{
-		vNode._.i--;
-		vNode._.__domNodes.splice(vNode._.i, 1);
-	}
-	else
-	{
-		vNode._.j--;
-		vNode._.__domNodes.splice(vNode._.j, 1);
-	}
+	// and advance `.i` again.
+	vNode._.i--;
+	vNode._.__domNodes.splice(vNode._.i, 1);
 
 	var parentNode = domNode.parentNode;
 	var newNode = _VirtualDom_render(vNode, eventNode);
