@@ -59,8 +59,12 @@ function _VirtualDom_wrap(object)
 	// to not break people who do, why not?
 	return Object.defineProperty(object, '_', {
 		value: {
-			__domNodes: [],
+			// We only read from `x.__oldDomNodes`. Uses `i`. Is set to `__newDomNodes` at each render.
+			__oldDomNodes: [],
+			// This is set to a new, empty array on each render. We push to `y.__newDomNodes`. The reason we have to have two arrays is because the same virtual node can be used multiple times, so sometimes `x === y`.
+			__newDomNodes: [],
 			__renderedAt: Number.MIN_SAFE_INTEGER,
+			// The index of the next DOM node in `__oldDomNodes` to use.
 			i: 0
 		}
 	});
@@ -527,18 +531,19 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 		return domNode;
 	}
 
-	return vNode._.__domNodes[vNode._.i - 1];
+	return vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1];
 }
 
 function _VirtualDom_storeDomNode(vNode, domNode)
 {
 	if (vNode._.__renderedAt !== _VirtualDom_renderCount)
 	{
+		vNode._.__oldDomNodes = vNode._.__newDomNodes;
+		vNode._.__newDomNodes = [];
 		vNode._.i = 0;
 		vNode._.__renderedAt = _VirtualDom_renderCount;
 	}
-	vNode._.__domNodes.splice(vNode._.i, 0, domNode);
-	vNode._.i++;
+	vNode._.__newDomNodes.push(domNode);
 }
 
 // Like `_VirtualDom_storeDomNode`, but assumes that we have already gone
@@ -546,7 +551,7 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 // the “previous” DOM node.
 function _VirtualDom_storeDomNodeTranslated(vNode, domNode)
 {
-	vNode._.__domNodes[vNode._.i - 1] = domNode;
+	vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1] = domNode;
 }
 
 
@@ -856,7 +861,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 {
 	if (x === y)
 	{
-		_VirtualDom_quickVisit(y, eventNode);
+		_VirtualDom_quickVisit(x, y, eventNode);
 		return false;
 	}
 
@@ -894,7 +899,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// make sure that the event listeners get the current
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
-				_VirtualDom_quickVisit(y, eventNode);
+				_VirtualDom_quickVisit(x, y, eventNode);
 				return false;
 			}
 			y.__node = y.__thunk();
@@ -911,31 +916,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		return _VirtualDom_diffHelp(x, y.__thunk(), eventNode);
 	}
 
-	y._.__domNodes = x._.__domNodes;
-
-	var domNode;
-
-	// Get DOM node, increase counters, but reset if not from this render.
-	if (x._.__renderedAt === _VirtualDom_renderCount)
-	{
-		x._.i++;
-	}
-	else
-	{
-		x._.i = 1;
-		x._.__renderedAt = _VirtualDom_renderCount;
-	}
-	if (y._.__renderedAt === _VirtualDom_renderCount)
-	{
-		domNode = y._.__domNodes[y._.i];
-		y._.i++;
-	}
-	else
-	{
-		domNode = y._.__domNodes[0];
-		y._.i = 1;
-		y._.__renderedAt = _VirtualDom_renderCount;
-	}
+	var domNode = _VirtualDom_consumeDomNode(x, y);
 
 	var xType = x.$;
 	var yType = y.$;
@@ -956,7 +937,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		}
 		else
 		{
-			_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
+			_VirtualDom_applyPatchRedraw(y, eventNode);
 			return false;
 		}
 	}
@@ -987,7 +968,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
-				_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
+				_VirtualDom_applyPatchRedraw(y, eventNode);
 				return;
 			}
 
@@ -1003,33 +984,20 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 // When we know that a node does not need updating, just quickly visit its children to:
 // - Update event listeners’ reference to the current `eventNode`.
 // - Increase or reset `.i`.
-function _VirtualDom_quickVisit(y, eventNode)
+function _VirtualDom_quickVisit(x, y, eventNode)
 {
 	switch (y.$)
 	{
 		case __2_TAGGER:
-			_VirtualDom_quickVisit(y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
+			_VirtualDom_quickVisit(x.__node, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 			return;
 
 		case __2_THUNK:
-			_VirtualDom_quickVisit(y.__node, eventNode);
+			_VirtualDom_quickVisit(x.__node, y.__node, eventNode);
 			return;
 	}
 
-	var domNode;
-
-	// Get DOM node, increase counter, but reset it if not from this render.
-	if (y._.__renderedAt === _VirtualDom_renderCount)
-	{
-		domNode = y._.__domNodes[y._.i];
-		y._.i++;
-	}
-	else
-	{
-		domNode = y._.__domNodes[0];
-		y._.i = 1;
-		y._.__renderedAt = _VirtualDom_renderCount;
-	}
+	var domNode = _VirtualDom_consumeDomNode(x, y);
 
 	switch (y.$)
 	{
@@ -1040,7 +1008,7 @@ function _VirtualDom_quickVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.__kids.length; i++)
 			{
-				_VirtualDom_quickVisit(y.__kids[i], eventNode);
+				_VirtualDom_quickVisit(x.__kids[i], y.__kids[i], eventNode);
 			}
 			return;
 
@@ -1048,7 +1016,7 @@ function _VirtualDom_quickVisit(y, eventNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.__kids.length; i++)
 			{
-				_VirtualDom_quickVisit(y.__kids[i].b, eventNode);
+				_VirtualDom_quickVisit(x.__kids[i].b, y.__kids[i].b, eventNode);
 			}
 			return;
 
@@ -1072,14 +1040,21 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 			return;
 	}
 
-	// This is the reason we need to increment .i also for the old virtual nodes.
-	if (x._.__renderedAt !== _VirtualDom_renderCount)
+	var domNode;
+
+	if (x._.__renderedAt === _VirtualDom_renderCount)
 	{
-		x._.i = 0;
+		domNode = x._.__oldDomNodes[x._.i];
+		x._.i++;
+	}
+	else
+	{
+		x._.__oldDomNodes = x._.__newDomNodes;
+		domNode = x._.__oldDomNodes[0];
+		x._.i = 1;
 		x._.__renderedAt = _VirtualDom_renderCount;
 	}
 	if (shouldRemoveFromDom) {
-		var domNode = x._.__domNodes[x._.i];
 		// An extension might have (re-)moved the element, so we can’t just
 		// call `parentDomNode.removeChild(domNode)`. That throws an error if
 		// the node is not a child of `parentDomNode`.
@@ -1089,7 +1064,6 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 			parentNode.removeChild(domNode);
 		}
 	}
-	x._.__domNodes.splice(x._.i, 1);
 
 	switch (x.$)
 	{
@@ -1115,13 +1089,41 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	}
 }
 
+// Consume DOM node number `i` from `x`:s "old" nodes, push it to `y`:s "new" nodes, and return the DOM node. Reset things if from a different render.
+function _VirtualDom_consumeDomNode(x, y)
+{
+	if (y._.__renderedAt !== _VirtualDom_renderCount)
+	{
+		y._.__oldDomNodes = y._.__newDomNodes;
+		y._.__newDomNodes = [];
+		y._.i = 0;
+		y._.__renderedAt = _VirtualDom_renderCount;
+	}
+	if (x._.__renderedAt === _VirtualDom_renderCount)
+	{
+		var domNode = x._.__oldDomNodes[x._.i];
+		y._.__newDomNodes.push(domNode);
+		x._.i++;
+		return domNode;
+	}
+	else
+	{
+		x._.__oldDomNodes = x._.__newDomNodes;
+		var domNode = x._.__oldDomNodes[0];
+		y._.__newDomNodes.push(domNode);
+		x._.i = 1;
+		x._.__renderedAt = _VirtualDom_renderCount;
+		return domNode;
+	}
+}
+
 function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 {
 	// Bail if obvious indicators have changed. Implies more serious
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		_VirtualDom_applyPatchRedraw(domNode, y, eventNode);
+		_VirtualDom_applyPatchRedraw(y, eventNode);
 		return;
 	}
 
@@ -1675,15 +1677,11 @@ function _VirtualDom_applyPatch(domNode, patch)
 }
 
 
-function _VirtualDom_applyPatchRedraw(domNode, vNode, eventNode)
+function _VirtualDom_applyPatchRedraw(vNode, eventNode)
 {
-	// `.i` has already been incremented at this point, in `_VirtualDom_diffHelp`.
-	// Go back to the current node, and remove it.
-	// The `_VirtualDom_render` call below will insert the new node at the same position,
-	// and advance `.i` again.
-	vNode._.i--;
-	vNode._.__domNodes.splice(vNode._.i, 1);
-
+	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diffHelp`. Pop it off.
+	// The `_VirtualDom_render` call below will push a new DOM node.
+	var domNode = vNode._.__newDomNodes.pop();
 	var parentNode = domNode.parentNode;
 	var newNode = _VirtualDom_render(vNode, eventNode);
 
@@ -1827,7 +1825,7 @@ function _VirtualDom_virtualize(node)
 	// Backwards compatibility: Elm has always supported mounting onto any node,
 	// even comment nodes.
 	vNode = _VirtualDom_text('');
-	vNode._.__domNodes.push(node);
+	vNode._.__newDomNodes.push(node);
 	return vNode;
 }
 
@@ -1838,7 +1836,7 @@ function _VirtualDom_virtualizeHelp(node)
 	if (node.nodeType === 3)
 	{
 		var vNode = _VirtualDom_text(node.textContent);
-		vNode._.__domNodes.push(node);
+		vNode._.__newDomNodes.push(node);
 		return vNode;
 	}
 
@@ -1907,7 +1905,7 @@ function _VirtualDom_virtualizeHelp(node)
 	}
 
 	var vNode = A4(_VirtualDom_nodeNS, namespace, tag, attrList, kidList);
-	vNode._.__domNodes.push(node);
+	vNode._.__newDomNodes.push(node);
 	return vNode;
 }
 
