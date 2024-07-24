@@ -640,30 +640,38 @@ function _VirtualDom_applyProps(domNode, prevProps, props)
 		var value = props[key];
 		// `value`, `checked`, `selected` and `selectedIndex` can all change via
 		// user interactions, so for those it’s important to compare to the
-		// actual DOM value. Other properties, such as `type`, is normalized, so
-		// a bad `type` property causes re-assignment every re-render. If this
-		// becomes a performance problem you could just set the
-		// normalized/correct value from the start.
-		// As an example, `.type = "foo"` is normalized to `"text"`.
-		// For the above reasons, we compare against the actual DOM node, rather
-		// than `prevProps`.
+		// actual DOM value. Because of that we compare against the actual DOM
+		// node, rather than `prevProps`. Note that many properties are
+		// normalized (to certain values, or to a full URL, for example), so if
+		// you use properties the might be set on every render if you don't
+		// supply the normalized form. `Html.Attributes` avoids this by
+		// primarily using attributes.
 		if (value !== domNode[key])
 		{
 			domNode[key] = value;
 		}
 	}
 
-	var defaultDomNode = undefined;
-
 	for (key in prevProps)
 	{
 		if (!(key in props))
 		{
-			if (!defaultDomNode)
+			var value = props[key];
+			switch (typeof value)
 			{
-				defaultDomNode = _VirtualDom_doc.createElementNS(domNode.namespaceURI, domNode.localName);
+				// Most string properties default to the empty string.
+				case 'string':
+					domNode[key] = '';
+					break;
+				// Most boolean properties default to false.
+				case 'boolean':
+					domNode[key] = false;
+					break;
+				// For other types it's unclear what to do.
 			}
-			domNode[key] = defaultDomNode[key];
+			// Standard properties cannot be deleted, but it is not an error trying.
+			// Non-standard properties can be deleted.
+			delete domNode[key];
 		}
 	}
 }
@@ -1745,72 +1753,11 @@ function _VirtualDom_applyPatchReorderEndInsertsHelp(endInserts, patch)
 }
 
 
-// These are things in the elm/html package that are set using DOM properties
-// rather than attributes. We need to know if we should virtualize to properties
-// or attributes. This isn’t perfect, but should avoid most unnecessary re-renders.
-var _VirtualDom_properties = {
-	accept: 'accept',
-	'accept-charset': 'acceptCharset',
-	accesskey: 'accessKey',
-	action: 'action',
-	align: 'align',
-	alt: 'alt',
-	autocomplete: 'autoComplete',
-	autofocus: 'autoFocus',
-	autoplay: 'autoPlay',
-	checked: 'checked',
-	cite: 'cite',
-	class: 'className',
-	contenteditable: 'contentEditable',
-	controls: 'controls',
-	coords: 'coords',
-	default: 'default',
-	dir: 'dir',
-	disabled: 'disabled',
-	download: 'download',
-	dropzone: 'dropzone',
-	enctype: 'encType',
-	headers: 'headers',
-	hidden: 'hidden',
-	href: 'href',
-	hreflang: 'hrefLang',
-	for: 'htmlFor',
-	id: 'id',
-	ismap: 'isMap',
-	kind: 'kind',
-	label: 'label',
-	lang: 'lang',
-	loop: 'loop',
-	max: 'max',
-	method: 'method',
-	min: 'min',
-	multiple: 'multiple',
-	name: 'name',
-	novalidate: 'noValidate',
-	pattern: 'pattern',
-	ping: 'ping',
-	placeholder: 'placeholder',
-	poster: 'poster',
-	preload: 'preload',
-	readonly: 'readOnly',
-	required: 'required',
-	reversed: 'reversed',
-	sandbox: 'sandbox',
-	scope: 'scope',
-	selected: 'selected',
-	shape: 'shape',
-	spellcheck: 'spellCheck',
-	src: 'src',
-	srcdoc: 'srcDoc',
-	srclang: 'srcLang',
-	start: 'start',
-	step: 'step',
-	target: 'target',
-	title: 'title',
-	type: 'type',
-	usemap: 'useMap',
-	value: 'value',
-	wrap: 'wrap'
+// TODO: These are the ones in elm/html. Check for more!
+var _VirtualDom_camelCaseBoolProperties = {
+	novalidate: "noValidate",
+	readonly: "readOnly",
+	ismap: "isMap"
 };
 
 
@@ -1871,10 +1818,14 @@ function _VirtualDom_virtualizeHelp(node)
 		var attr = attrs[i];
 		var name = attr.name;
 		var value = attr.value;
-		var property = _VirtualDom_properties[name];
+		var propertyName = _VirtualDom_camelCaseBoolProperties[name] || name;
+		var propertyValue = node[propertyName];
 		attrList = __List_Cons(
-			property
-				? A2(_VirtualDom_property, property, node[property])
+			// Try to guess if the attribute comes from one of the functions
+			// implemented using `boolProperty` in `Html.Attributes`.
+			// See `Html.Attributes.spellcheck` for that exception.
+			typeof propertyValue === 'boolean' && name !== 'spellcheck'
+				? A2(_VirtualDom_property, propertyName, propertyValue)
 				:
 			attr.namespaceURI
 			 	? A3(_VirtualDom_attributeNS, attr.namespaceURI, attr.name, attr.value)
