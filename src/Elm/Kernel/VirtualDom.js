@@ -1753,7 +1753,58 @@ function _VirtualDom_applyPatchReorderEndInsertsHelp(endInserts, patch)
 }
 
 
-// TODO: These are the ones in elm/html. Check for more!
+/*
+This is a mapping between attribute names and their corresponding boolean properties,
+and only the ones where the attribute name is different from the property name
+(usually in casing – attributes are case insensitive, and returned lowercase).
+
+The mapping currently only lists the ones that have dedicated functions in elm/html.
+
+There are more though! Running the following code in the console gives more results:
+
+[...new Set(Object.getOwnPropertyNames(window).filter(d => d.startsWith("HTML") || d === "Node" || d === "Element" || d === "EventTarget").flatMap(d => {c = window[d]; m = c.name.match(/^HTML(\w+)Element$/); e = document.createElement(m ? m[1].replace("Anchor", "a").replace("Paragraph", "p").replace("Image", "img").replace("Media", "video").replace(/^([DOU])List$/, "$1l").toLowerCase() : "div"); return Object.getOwnPropertyNames(c.prototype).filter(n => typeof e[n] === "boolean")}))].filter(n => /[A-Z]/.test(n)).sort()
+
+Potential candidates to support (should probably add to elm/html first):
+disablePictureInPicture – video
+playsInline – video
+formNoValidate – button, input
+
+Not useful with Elm:
+noModule – script
+shadowRootClonable – template
+shadowRootDelegatesFocus – template
+shadowRootSerializable – template
+
+Legacy/deprecated:
+allowFullscreen – iframe (use allow="fullscreen" instead)
+allowPaymentRequest – iframe (use allow="payment" instead)
+noHref - area (image maps)
+noResize – frame (not iframe)
+noShade – hr
+trueSpeed – marquee
+
+Special:
+defaultChecked
+defaultMuted
+defaultSelected
+
+No corresponding attribute:
+disableRemotePlayback
+isConnected
+isContentEditable
+preservesPitch
+sharedStorageWritable
+willValidate
+
+Unclear:
+adAuctionHeaders
+browsingTopics
+
+Regarding the special ones: `<input checked>` results in `.defaultChecked === true`. Similarly, setting `input.defaultChecked = true` results in `input.outerHTML === '<input checked="">'`. `input.checked = true` does _not_ result in an attribute though: `.checked` has no corresponding attribute. However, when serializing
+`Html.input [ Html.Attributes.checked True ] []` to HTML, `<input checked>` is the most reasonable choice.
+So when virtualizing, we actually want to turn the `checked` attribute back into a boolean "checked" property in Elm
+(even if according to the DOM, it's `.defaultChecked`). Same thing for `muted` and `selected`.
+*/
 var _VirtualDom_camelCaseBoolProperties = {
 	novalidate: "noValidate",
 	readonly: "readOnly",
@@ -1816,19 +1867,43 @@ function _VirtualDom_virtualizeHelp(node)
 	for (var i = attrs.length; i--; )
 	{
 		var attr = attrs[i];
+		var namespaceURI = attr.namespaceURI;
 		var name = attr.name;
 		var value = attr.value;
 		var propertyName = _VirtualDom_camelCaseBoolProperties[name] || name;
 		var propertyValue = node[propertyName];
+		// Turning attributes into virtual DOM representations is not an exact science.
+		// If someone runs an Elm `view` function and then serializes it to HTML, we need to guess:
+		//
+		// - how they chose to serialize it
+		// - what the most likely virtual DOM representation is
+		//
+		// In elm/html, the convention is to use attributes rather than properties where possible,
+		// which is good for virtualization – we can just turn most HTML attributes we find as-is
+		// into virtual DOM attributes. But when we encounter `foo="bar"` we can’t know if it was
+		// created using `Html.Attributes.attribute "foo" "bar"` or
+		// `Html.Attributes.property "foo" (Json.Encode.string "bar")`.
+		//
+		// It's not the end of the world if we guess wrong, though, it just leads to a bit of
+		// unnecessary DOM mutations on the first render.
 		attrList = __List_Cons(
+			// `Html.Attributes.value` sets the `.value` property to a string, because that’s the
+			// only way to set the value of an input element. The `.value` property has no corresponding
+			// attribute; the `value` attribute maps to the `.defaultValue` property. But when serializing,
+			// the most likely way to do it is to serialize the `.value` property to the `value` attribute.
+			name === 'value'
+				? A2(_VirtualDom_property, name, value)
+				:
 			// Try to guess if the attribute comes from one of the functions
 			// implemented using `boolProperty` in `Html.Attributes`.
 			// See `Html.Attributes.spellcheck` for that exception.
 			typeof propertyValue === 'boolean' && name !== 'spellcheck'
 				? A2(_VirtualDom_property, propertyName, propertyValue)
 				:
-			attr.namespaceURI
-			 	? A3(_VirtualDom_attributeNS, attr.namespaceURI, attr.name, attr.value)
+			// Otherwise, guess that it is an attribute. The user might have used `Html.Attributes.property`,
+			// but there’s no way for us to know that.
+			namespaceURI
+			 	? A3(_VirtualDom_attributeNS, namespaceURI, name, value)
 				: A2(_VirtualDom_attribute, name, value),
 			attrList
 		);
