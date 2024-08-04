@@ -602,6 +602,7 @@ function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 			// Support `Html.Attributes.style "borderRadius" "5px"`.
 			// `.setProperty` requires "border-radius" with a dash.
 			// TODO: Measure if `key[0] === '-'` is faster. (And is correct?)
+			// Or maybe `key.charCodeAt(0) === 45`.
 			if (key in domNode.style)
 			{
 				domNode.style[key] = value;
