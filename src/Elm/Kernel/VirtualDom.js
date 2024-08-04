@@ -122,9 +122,18 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = []; kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = {}; kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
-			kids.push(kidList.a);
+			var kid = kidList.a;
+			// Prefix since integer-looking keys come first (in value order).
+			// We want insertion order always.
+			var key = '$' + kid.a;
+			// Handle duplicate keys by adding a postfix.
+			while (key in kids)
+			{
+				key += _VirtualDom_POSTFIX;
+			}
+			kids[key] = kid.b;
 		}
 
 		return _VirtualDom_wrap({
@@ -1276,8 +1285,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	// Temporary implementation:
 	_VirtualDom_diffKids(
 		parentDomNode,
-		{...xParent, __kids: xParent.__kids.map(kid => kid.b)},
-		{...yParent, __kids: yParent.__kids.map(kid => kid.b)},
+		{...xParent, __kids: Object.values(xParent.__kids)},
+		{...yParent, __kids: Object.values(yParent.__kids)},
 		eventNode
 	);
 	return;
