@@ -561,29 +561,58 @@ function _VirtualDom_storeDomNodeTranslated(vNode, domNode)
 
 function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 {
-	if (facts.a__1_STYLE !== undefined || prevFacts.a__1_STYLE !== undefined)
+	// Since properties and attributes are sometimes linked, we need to remove old
+	// ones before setting new ones. Otherwise we might set the `id` attribute and
+	// then remove the `id` property, resulting in no id, for example.
+
+	if (prevFacts.a__1_STYLE !== undefined)
 	{
-		_VirtualDom_applyStyles(domNode, prevFacts.a__1_STYLE || {}, facts.a1 || {});
+		_VirtualDom_removeStyles(domNode, prevFacts.a__1_STYLE, facts.a__1_STYLE || {});
 	}
+
+	if (prevFacts.a__1_PROP !== undefined)
+	{
+		_VirtualDom_removeProps(domNode, prevFacts.a__1_PROP, facts.a__1_PROP || {});
+	}
+
+	if (prevFacts.a__1_ATTR !== undefined)
+	{
+		_VirtualDom_removeAttrs(domNode, prevFacts.a__1_ATTR, facts.a__1_ATTR || {});
+	}
+
+	if (prevFacts.a__1_ATTR_NS !== undefined)
+	{
+		_VirtualDom_removeAttrsNS(domNode, prevFacts.a__1_ATTR_NS, facts.a__1_ATTR_NS || {});
+	}
+
+	// Then, apply new facts.
+
+	if (facts.a__1_STYLE !== undefined)
+	{
+		_VirtualDom_applyStyles(domNode, prevFacts.a__1_STYLE || {}, facts.a__1_STYLE);
+	}
+
+	if (facts.a__1_PROP !== undefined)
+	{
+		_VirtualDom_applyProps(domNode, prevFacts.a__1_PROP || {}, facts.a__1_PROP);
+	}
+
+	if (facts.a__1_ATTR !== undefined)
+	{
+		_VirtualDom_applyAttrs(domNode, prevFacts.a__1_ATTR || {}, facts.a__1_ATTR);
+	}
+
+	if (facts.a__1_ATTR_NS !== undefined)
+	{
+		_VirtualDom_applyAttrsNS(domNode, prevFacts.a__1_ATTR_NS || {}, facts.a__1_ATTR_NS);
+	}
+
+	// Finally, apply events. There is no separate phase for removing events.
+	// Attributes and properties can't interfere with events, so it's fine.
 
 	if (facts.a__1_EVENT !== undefined || prevFacts.a__1_EVENT !== undefined)
 	{
 		_VirtualDom_applyEvents(domNode, eventNode, facts.a__1_EVENT || {});
-	}
-
-	if (facts.a__1_PROP !== undefined || prevFacts.a__1_PROP !== undefined)
-	{
-		_VirtualDom_applyProps(domNode, prevFacts.a__1_PROP || {}, facts.a__1_PROP || {});
-	}
-
-	if (facts.a__1_ATTR !== undefined || prevFacts.a__1_ATTR !== undefined)
-	{
-		_VirtualDom_applyAttrs(domNode, prevFacts.a__1_ATTR || {}, facts.a__1_ATTR || {});
-	}
-
-	if (facts.a__1_ATTR_NS !== undefined || prevFacts.a__1_ATTR_NS !== undefined)
-	{
-		_VirtualDom_applyAttrsNS(domNode, prevFacts.a__1_ATTR_NS || {}, facts.a__1_ATTR_NS || {});
 	}
 }
 
@@ -613,8 +642,12 @@ function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 			}
 		}
 	}
+}
 
-	for (key in prevStyles)
+
+function _VirtualDom_removeStyles(domNode, prevStyles, styles)
+{
+	for (var key in prevStyles)
 	{
 		if (!(key in styles))
 		{
@@ -652,8 +685,12 @@ function _VirtualDom_applyProps(domNode, prevProps, props)
 			domNode[key] = value;
 		}
 	}
+}
 
-	for (key in prevProps)
+
+function _VirtualDom_removeProps(domNode, prevProps, props)
+{
+	for (var key in prevProps)
 	{
 		if (!(key in props))
 		{
@@ -692,8 +729,12 @@ function _VirtualDom_applyAttrs(domNode, prevAttrs, attrs)
 			domNode.setAttribute(key, value);
 		}
 	}
+}
 
-	for (key in prevAttrs)
+
+function _VirtualDom_removeAttrs(domNode, prevAttrs, attrs)
+{
+	for (var key in prevAttrs)
 	{
 		if (!(key in attrs))
 		{
@@ -729,8 +770,12 @@ function _VirtualDom_applyAttrsNS(domNode, prevNsAttrs, nsAttrs)
 			domNode.setAttributeNS(namespace, key, value);
 		}
 	}
+}
 
-	for (key in prevNsAttrs)
+
+function _VirtualDom_removeAttrsNS(domNode, prevNsAttrs, nsAttrs)
+{
+	for (var key in prevNsAttrs)
 	{
 		if (!(key in nsAttrs))
 		{
