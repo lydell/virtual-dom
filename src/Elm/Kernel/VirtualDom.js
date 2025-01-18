@@ -33,6 +33,10 @@ function _VirtualDom_appendChild(parent, child)
 	parent.appendChild(child);
 }
 
+var _VirtualDom_moveBefore = typeof Element.prototype.moveBefore === 'function'
+	? function _VirtualDom_moveBefore(parent, child, reference) { parent.moveBefore(child, reference); }
+	: function _VirtualDom_moveBefore(parent, child, reference) { parent.insertBefore(child, reference); }
+
 var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
 {
 	// NOTE: this function needs __Platform_export available to work
@@ -122,18 +126,17 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = {}; kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = Object.create(null), keys = []; kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
 			var kid = kidList.a;
-			// Prefix since integer-looking keys come first (in value order).
-			// We want insertion order always.
-			var key = '$' + kid.a;
+			var key = kid.a;
 			// Handle duplicate keys by adding a postfix.
 			while (key in kids)
 			{
 				key += _VirtualDom_POSTFIX;
 			}
 			kids[key] = kid.b;
+			keys.push(key);
 		}
 
 		return _VirtualDom_wrap({
@@ -141,6 +144,7 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
 			__kids: kids,
+			__keys: keys,
 			__namespace: namespace
 		});
 	});
@@ -1279,23 +1283,149 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 // KEYED DIFF
 
 
-// TODO: Keyed kids.
 function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 {
-	// Temporary implementation:
-	_VirtualDom_diffKids(
-		parentDomNode,
-		{...xParent, __kids: Object.values(xParent.__kids)},
-		{...yParent, __kids: Object.values(yParent.__kids)},
-		eventNode
-	);
-	return;
+	var xKids = xParent.__kids;
+	var yKids = yParent.__kids;
 
-	var localPatches = [];
+	var xKeys = xParent.__keys;
+	var yKeys = yParent.__keys;
 
-	var changes = {}; // Dict String Entry
-	var inserts = []; // Array { index : Int, entry : Entry }
-	// type Entry = { tag : String, vnode : VNode, index : Int, data : _ }
+	var translated = false;
+
+	var xIndexLower = 0;
+	var yIndexLower = 0;
+	var xIndexUpper = xKeys.length - 1;
+	var yIndexUpper = yKeys.length - 1;
+
+	while (true)
+	{
+		while (xIndexLower <= xIndexUpper && yIndexLower <= yIndexUpper)
+		{
+			var xKey = xKeys[xIndexLower];
+			var yKey = yKeys[yIndexLower];
+			var x = xKids[xKey];
+			var y = yKids[yKey];
+
+			if (xKey === yKey)
+			{
+				var thisTranslated = _VirtualDom_diffHelp(x, y, eventNode);
+				if (thisTranslated)
+				{
+					translated = true;
+				}
+				xIndexLower++;
+				yIndexLower++;
+				continue;
+			}
+
+			var xMoved = false;
+
+			if (xKey in yKids)
+			{
+				xMoved = true;
+			}
+			else
+			{
+				_VirtualDom_removeVisit(x, true);
+				xIndexLower++;
+			}
+
+			if (yKey in xKids)
+			{
+				if (xMoved)
+				{
+					break;
+				}
+			}
+			else
+			{
+				var domNode = _VirtualDom_render(y, eventNode);
+				// TODO: Insert before what?
+				parentDomNode.insertBefore(domNode, TODO);
+				yIndexLower++;
+			}
+		}
+
+		while (xIndexUpper > xIndexLower && yIndexUpper > yIndexLower)
+		{
+			// Same but from the other direction.
+			h
+		}
+
+		var swapped = false;
+
+		if (xIndexLower < xIndexUpper && yIndexLower < yIndexUpper)
+		{
+			var xKeyLower = xKeys[xIndexLower];
+			var yKeyLower = yKeys[yIndexLower];
+			var xKeyUpper = xKeys[xIndexUpper];
+			var yKeyUpper = yKeys[yIndexUpper];
+
+			if (xKeyLower === yKeyUpper)
+			{
+				// TODO: Move the node as well!
+				var thisTranslated = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[xKeyUpper], eventNode);
+				if (thisTranslated)
+				{
+					translated = true;
+				}
+				xIndexLower++;
+				yIndexUpper--;
+				swapped = true;
+			}
+
+			if (xKeyUpper == yKeyLower)
+			{
+				// TODO: Move the node as well!
+				var thisTranslated = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[xKeyLower], eventNode);
+				if (thisTranslated)
+				{
+					translated = true;
+				}
+				yIndexLower++;
+				xIndexUpper--;
+				swapped = true;
+			}
+		}
+
+		if (!swapped)
+		{
+			break;
+		}
+	}
+
+	for (; yIndexLower <= yIndexUpper; yIndexLower++)
+	{
+		var yKey = yKeys[yIndexLower];
+		var y = yKids[yKey];
+		if (yKey in xKids)
+		{
+			// TODO: Move the node as well!
+			var x = xKids[yKey];
+			var thisTranslated = _VirtualDom_diffHelp(x, y, eventNode);
+			if (thisTranslated)
+			{
+				translated = true;
+			}
+		}
+		else
+		{
+			var domNode = _VirtualDom_render(y, eventNode);
+			// TODO: Insert before what?
+			parentDomNode.insertBefore(domNode, TODO);
+		}
+	}
+
+	for (; xIndexLower <= xIndexUpper; xIndexLower++)
+	{
+		var xKey = xKeys[xIndexLower];
+		if (!(xKey in yKids)) {
+			_VirtualDom_removeVisit(xKids[xKey], true);
+		}
+	}
+
+	return translated;
 
 	var xKids = xParent.__kids;
 	var yKids = yParent.__kids;
@@ -1993,11 +2123,10 @@ function _VirtualDom_virtualizeHelp(node)
 function _VirtualDom_dekey(keyedNode)
 {
 	var keyedKids = keyedNode.__kids;
-	var len = keyedKids.length;
-	var kids = new Array(len);
-	for (var i = 0; i < len; i++)
+	var kids = [];
+	for (var key in keyedKids)
 	{
-		kids[i] = keyedKids[i].b;
+		kids.push(keyedKids[key]);
 	}
 
 	return Object.defineProperty({
