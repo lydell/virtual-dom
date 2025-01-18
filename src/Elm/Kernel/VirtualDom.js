@@ -1247,7 +1247,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 			}
 		}
 	}
-	
+
 	return domNode;
 }
 
@@ -1318,7 +1318,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	var yIndexLower = 0;
 	var xIndexUpper = xKeys.length - 1;
 	var yIndexUpper = yKeys.length - 1;
-	
+
 	var domNodeLower = null;
 	var domNodeUpper = null;
 
@@ -1524,7 +1524,7 @@ function _VirtualDom_applyPatchRedraw(vNode, eventNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
 	}
-	
+
 	return newNode;
 }
 
