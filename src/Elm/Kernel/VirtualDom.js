@@ -33,9 +33,33 @@ function _VirtualDom_appendChild(parent, child)
 	parent.appendChild(child);
 }
 
+function _VirtualDom_insertBefore(parent, child, reference)
+{
+	parent.insertBefore(child, reference);
+}
+
+function _VirtualDom_insertAfter(parent, child, reference)
+{
+	parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+}
+
+function _VirtualDom_moveBefore_(parent, child, reference)
+{
+	parent.moveBefore(child, reference);
+}
+
+function _VirtualDom_moveAfter_(parent, child, reference)
+{
+	parent.moveBefore(child, reference === null ? parent.firstChild : reference);
+}
+
 var _VirtualDom_moveBefore = typeof Element.prototype.moveBefore === 'function'
-	? function _VirtualDom_moveBefore(parent, child, reference) { parent.moveBefore(child, reference); }
-	: function _VirtualDom_moveBefore(parent, child, reference) { parent.insertBefore(child, reference); }
+	? _VirtualDom_moveBefore_
+	: _VirtualDom_insertBefore;
+
+var _VirtualDom_moveAfter = typeof Element.prototype.moveBefore === 'function'
+	? _VirtualDom_moveAfter_
+	: _VirtualDom_insertAfter;
 
 var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
 {
@@ -928,8 +952,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 {
 	if (x === y)
 	{
-		_VirtualDom_quickVisit(x, y, eventNode);
-		return false;
+		return [_VirtualDom_quickVisit(x, y, eventNode), false];
 	}
 
 	// Remember: When virtualizing already existing DOM, we can’t know
@@ -966,8 +989,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// make sure that the event listeners get the current
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
-				_VirtualDom_quickVisit(x, y, eventNode);
-				return false;
+				return [_VirtualDom_quickVisit(x, y, eventNode), false];
 			}
 			y.__node = y.__thunk();
 			return _VirtualDom_diffHelp(x.__node, y.__node, eventNode);
@@ -1004,8 +1026,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		}
 		else
 		{
-			_VirtualDom_applyPatchRedraw(y, eventNode);
-			return false;
+			return [_VirtualDom_applyPatchRedraw(y, eventNode), false];
 		}
 	}
 
@@ -1018,25 +1039,22 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// Text replaced or changed by translation plugins.
 				if (!domNode.parentNode || domNode.data !== x.__text)
 				{
-					return true;
+					return [domNode, true];
 				}
 				domNode.replaceData(0, domNode.length, y.__text);
 			}
-			return false;
+			return [domNode, false];
 
 		case __2_NODE:
-			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids);
-			return false;
+			return [_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids), false];
 
 		case __2_KEYED_NODE:
-			_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
-			return false;
+			return [_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids), false];
 
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
-				_VirtualDom_applyPatchRedraw(y, eventNode);
-				return;
+				return [_VirtualDom_applyPatchRedraw(y, eventNode), false];
 			}
 
 			_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
@@ -1044,7 +1062,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			var patch = y.__diff(x.__model, y.__model);
 			patch && patch(domNode);
 
-			return false;
+			return [domNode, false];
 	}
 }
 
@@ -1056,12 +1074,10 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 	switch (y.$)
 	{
 		case __2_TAGGER:
-			_VirtualDom_quickVisit(x.__node, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
-			return;
+			return _VirtualDom_quickVisit(x.__node, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 
 		case __2_THUNK:
-			_VirtualDom_quickVisit(x.__node, y.__node, eventNode);
-			return;
+			return _VirtualDom_quickVisit(x.__node, y.__node, eventNode);
 	}
 
 	var domNode = _VirtualDom_consumeDomNode(x, y);
@@ -1069,7 +1085,7 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 	switch (y.$)
 	{
 		case __2_TEXT:
-			return;
+			return domNode;
 
 		case __2_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
@@ -1077,7 +1093,7 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 			{
 				_VirtualDom_quickVisit(x.__kids[i], y.__kids[i], eventNode);
 			}
-			return;
+			return domNode;
 
 		case __2_KEYED_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
@@ -1085,11 +1101,11 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 			{
 				_VirtualDom_quickVisit(x.__kids[i].b, y.__kids[i].b, eventNode);
 			}
-			return;
+			return domNode;
 
 		case __2_CUSTOM:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			return;
+			return domNode;
 	}
 }
 
@@ -1190,8 +1206,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		_VirtualDom_applyPatchRedraw(y, eventNode);
-		return;
+		return _VirtualDom_applyPatchRedraw(y, eventNode);
 	}
 
 	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
@@ -1224,10 +1239,12 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 			}
 			else
 			{
-				domNode.insertBefore(child, current);
+				_VirtualDom_insertBefore(domNode, child, current)
 			}
 		}
 	}
+	
+	return domNode;
 }
 
 
@@ -1249,8 +1266,8 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
-		var thisTranslated = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
-		if (thisTranslated)
+		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
+		if (diffReturn[1])
 		{
 			translated = true;
 		}
@@ -1297,6 +1314,9 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	var yIndexLower = 0;
 	var xIndexUpper = xKeys.length - 1;
 	var yIndexUpper = yKeys.length - 1;
+	
+	var domNodeLower = null;
+	var domNodeUpper = null;
 
 	while (true)
 	{
@@ -1309,13 +1329,14 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKey === yKey)
 			{
-				var thisTranslated = _VirtualDom_diffHelp(x, y, eventNode);
-				if (thisTranslated)
+				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+				if (diffReturn[1])
 				{
 					translated = true;
 				}
 				xIndexLower++;
 				yIndexLower++;
+				domNodeLower = diffReturn[0];
 				continue;
 			}
 
@@ -1341,16 +1362,58 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			else
 			{
 				var domNode = _VirtualDom_render(y, eventNode);
-				// TODO: Insert before what?
-				parentDomNode.insertBefore(domNode, TODO);
+				_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
 				yIndexLower++;
+				domNodeLower = domNode;
 			}
 		}
 
 		while (xIndexUpper > xIndexLower && yIndexUpper > yIndexLower)
 		{
-			// Same but from the other direction.
-			h
+			var xKey = xKeys[xIndexUpper];
+			var yKey = yKeys[yIndexUpper];
+			var x = xKids[xKey];
+			var y = yKids[yKey];
+
+			if (xKey === yKey)
+			{
+				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+				if (diffReturn[1])
+				{
+					translated = true;
+				}
+				xIndexUpper++;
+				yIndexUpper++;
+				domNodeUpper = diffReturn[0];
+				continue;
+			}
+
+			var xMoved = false;
+
+			if (xKey in yKids)
+			{
+				xMoved = true;
+			}
+			else
+			{
+				_VirtualDom_removeVisit(x, true);
+				xIndexUpper++;
+			}
+
+			if (yKey in xKids)
+			{
+				if (xMoved)
+				{
+					break;
+				}
+			}
+			else
+			{
+				var domNode = _VirtualDom_render(y, eventNode);
+				_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
+				yIndexUpper++;
+				domNodeUpper = domNode;
+			}
 		}
 
 		var swapped = false;
@@ -1364,27 +1427,29 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyLower === yKeyUpper)
 			{
-				// TODO: Move the node as well!
-				var thisTranslated = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[xKeyUpper], eventNode);
-				if (thisTranslated)
+				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[xKeyUpper], eventNode);
+				if (diffReturn[1])
 				{
 					translated = true;
 				}
 				xIndexLower++;
 				yIndexUpper--;
+				_VirtualDom_moveBefore(parentDomNode, diffReturn[0], domNodeUpper);
+				domNodeUpper = diffReturn[0];
 				swapped = true;
 			}
 
 			if (xKeyUpper == yKeyLower)
 			{
-				// TODO: Move the node as well!
-				var thisTranslated = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[xKeyLower], eventNode);
-				if (thisTranslated)
+				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[xKeyLower], eventNode);
+				if (diffReturn[1])
 				{
 					translated = true;
 				}
 				yIndexLower++;
 				xIndexUpper--;
+				_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
+				domNodeLower = diffReturn[0];
 				swapped = true;
 			}
 		}
@@ -1401,19 +1466,20 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		var y = yKids[yKey];
 		if (yKey in xKids)
 		{
-			// TODO: Move the node as well!
 			var x = xKids[yKey];
-			var thisTranslated = _VirtualDom_diffHelp(x, y, eventNode);
-			if (thisTranslated)
+			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+			if (diffReturn[1])
 			{
 				translated = true;
 			}
+			_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
+			domNodeLower = diffReturn[0];
 		}
 		else
 		{
 			var domNode = _VirtualDom_render(y, eventNode);
-			// TODO: Insert before what?
-			parentDomNode.insertBefore(domNode, TODO);
+			_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
+			domNodeLower = domNode;
 		}
 	}
 
@@ -1442,6 +1508,8 @@ function _VirtualDom_applyPatchRedraw(vNode, eventNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
 	}
+	
+	return newNode;
 }
 
 /*
