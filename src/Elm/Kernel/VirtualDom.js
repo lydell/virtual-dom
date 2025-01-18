@@ -665,17 +665,20 @@ function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 		var value = styles[key];
 		if (value !== prevStyles[key])
 		{
-			// Support `Html.Attributes.style "borderRadius" "5px"`.
-			// `.setProperty` requires "border-radius" with a dash.
-			// TODO: Measure if `key[0] === '-'` is faster. (And is correct?)
-			// Or maybe `key.charCodeAt(0) === 45`.
-			if (key in domNode.style)
+			// `.setProperty` must be used for `--custom-properties`.
+			// Standard properties never start with a dash.
+			// `.setProperty` requires for example "border-radius" with a dash,
+			// while both `.style["border-radius"]` and `.style["borderRadius"]`.
+			// Elm used to only use `.style`. In order to support existing code like
+			// `Html.Attributes.style "borderRadius" "5px"` we default to `.style`
+			// and only use `.setProperty` if the property name starts with a dash.
+			if (key.charCodeAt(0) === 45)
 			{
-				domNode.style[key] = value;
+				domNode.style.setProperty(key, value);
 			}
 			else
 			{
-				domNode.style.setProperty(key, value);
+				domNode.style[key] = value;
 			}
 		}
 	}
@@ -688,13 +691,14 @@ function _VirtualDom_removeStyles(domNode, prevStyles, styles)
 	{
 		if (!(key in styles))
 		{
-			if (key in domNode.style)
+			// See `_VirtualDom_applyStyles`.
+			if (key.charCodeAt(0) === 45)
 			{
-				domNode.style[key] = '';
+				domNode.style.removeProperty(key);
 			}
 			else
 			{
-				domNode.style.removeProperty(key);
+				domNode.style[key] = '';
 			}
 		}
 	}
