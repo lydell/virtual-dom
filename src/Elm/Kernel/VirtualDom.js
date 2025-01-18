@@ -1324,6 +1324,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 	while (true)
 	{
+		// Consume from the start until we get stuck.
 		while (xIndexLower <= xIndexUpper && yIndexLower <= yIndexUpper)
 		{
 			var xKey = xKeys[xIndexLower];
@@ -1372,6 +1373,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			}
 		}
 
+		// Consume from the end until we get stuck.
 		while (xIndexUpper > xIndexLower && yIndexUpper > yIndexLower)
 		{
 			var xKey = xKeys[xIndexUpper];
@@ -1422,6 +1424,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 		var swapped = false;
 
+		// Check if the start or end can be unstuck by a swap.
 		if (xIndexLower < xIndexUpper && yIndexLower < yIndexUpper)
 		{
 			var xKeyLower = xKeys[xIndexLower];
@@ -1458,12 +1461,20 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			}
 		}
 
+		// If no swap, stop consuming from start and end.
 		if (!swapped)
 		{
 			break;
 		}
 	}
 
+	// For the remaining items in the new virtual DOM, diff with the corresponding
+	// old virtual DOM node (if any) and move it into the correct place.
+	// This might result in more moves than technically needed, but:
+	// - Moving nodes isn’t that slow. Diffing algorithms aren’t free either.
+	// - In browsers supporting `.moveBefore()` unnecessary moves have no unwanted side effects.
+	// - Elm has never had a “perfect” implementation for Keyed, and this should not
+	//   be worse than the previous implementation.
 	for (; yIndexLower <= yIndexUpper; yIndexLower++)
 	{
 		var yKey = yKeys[yIndexLower];
@@ -1487,6 +1498,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		}
 	}
 
+	// Remove the remaining old virtual DOM nodes that aren’t present in the new virtual DOM.
 	for (; xIndexLower <= xIndexUpper; xIndexLower++)
 	{
 		var xKey = xKeys[xIndexLower];
