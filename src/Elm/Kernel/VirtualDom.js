@@ -987,7 +987,7 @@ function _VirtualDom_makeCallback(initialEventNode, initialHandler)
 // DIFF
 
 
-function _VirtualDom_diffHelp(x, y, eventNode)
+function _VirtualDom_diff(x, y, eventNode)
 {
 	if (x === y)
 	{
@@ -1006,7 +1006,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 	if (y.$ === __2_TAGGER)
 	{
-		return _VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
+		return _VirtualDom_diff(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) });
 	}
 
 	if (x.$ === __2_THUNK)
@@ -1031,17 +1031,17 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				return [_VirtualDom_quickVisit(x, y, eventNode), false];
 			}
 			y.__node = y.__thunk();
-			return _VirtualDom_diffHelp(x.__node, y.__node, eventNode);
+			return _VirtualDom_diff(x.__node, y.__node, eventNode);
 		}
 		else
 		{
-			return _VirtualDom_diffHelp(x.__node, y, eventNode);
+			return _VirtualDom_diff(x.__node, y, eventNode);
 		}
 	}
 
 	if (y.$ === __2_THUNK)
 	{
-		return _VirtualDom_diffHelp(x, y.__thunk(), eventNode);
+		return _VirtualDom_diff(x, y.__thunk(), eventNode);
 	}
 
 	var domNode = _VirtualDom_consumeDomNode(x, y);
@@ -1325,7 +1325,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
-		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
+		var diffReturn = _VirtualDom_diff(xKids[i], yKids[i], eventNode);
 		if (diffReturn[1])
 		{
 			translated = true;
@@ -1423,7 +1423,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKey === yKey)
 			{
-				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+				var diffReturn = _VirtualDom_diff(x, y, eventNode);
 				xIndexLower++;
 				yIndexLower++;
 				handleDiffReturnLower(diffReturn);
@@ -1468,7 +1468,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKey === yKey)
 			{
-				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+				var diffReturn = _VirtualDom_diff(x, y, eventNode);
 				xIndexUpper--;
 				yIndexUpper--;
 				handleDiffReturnUpper(diffReturn);
@@ -1515,7 +1515,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyLower === yKeyUpper)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[yKeyUpper], eventNode);
+				var diffReturn = _VirtualDom_diff(xKids[xKeyLower], yKids[yKeyUpper], eventNode);
 				xIndexLower++;
 				yIndexUpper--;
 				_VirtualDom_moveBefore(parentDomNode, diffReturn[0], domNodeUpper);
@@ -1525,7 +1525,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyUpper == yKeyLower)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[yKeyLower], eventNode);
+				var diffReturn = _VirtualDom_diff(xKids[xKeyUpper], yKids[yKeyLower], eventNode);
 				yIndexLower++;
 				xIndexUpper--;
 				_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
@@ -1555,7 +1555,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		if (yKey in xKids)
 		{
 			var x = xKids[yKey];
-			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
+			var diffReturn = _VirtualDom_diff(x, y, eventNode);
 			_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
 			handleDiffReturnLower(diffReturn);
 		}
@@ -1583,7 +1583,7 @@ var _VirtualDom_POSTFIX = '_elmW6BL';
 
 function _VirtualDom_applyPatchRedraw(vNode, eventNode)
 {
-	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diffHelp`. Pop it off.
+	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diff`. Pop it off.
 	// The `_VirtualDom_render` call below will push a new DOM node.
 	var domNode = vNode._.__newDomNodes.pop();
 	var parentNode = domNode.parentNode;
