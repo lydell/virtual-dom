@@ -1431,8 +1431,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				{
 					translated = true;
 				}
-				xIndexUpper++;
-				yIndexUpper++;
+				xIndexUpper--;
+				yIndexUpper--;
 				domNodeUpper = diffReturn[0];
 				continue;
 			}
@@ -1446,7 +1446,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			else
 			{
 				_VirtualDom_removeVisit(x, true);
-				xIndexUpper++;
+				xIndexUpper--;
 			}
 
 			if (yKey in xKids)
@@ -1460,7 +1460,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			{
 				var domNode = _VirtualDom_render(y, eventNode);
 				_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
-				yIndexUpper++;
+				yIndexUpper--;
 				domNodeUpper = domNode;
 			}
 		}
