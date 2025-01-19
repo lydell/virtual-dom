@@ -35,22 +35,34 @@ function _VirtualDom_appendChild(parent, child)
 
 function _VirtualDom_insertBefore(parent, child, reference)
 {
-	parent.insertBefore(child, reference);
+	if (!(child.parentNode === parent && child.nextSibling === reference))
+	{
+		parent.insertBefore(child, reference);
+	}
 }
 
 function _VirtualDom_insertAfter(parent, child, reference)
 {
-	parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+	if (!(child.parentNode === parent && child.previousSibling === reference))
+	{
+		parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+	}
 }
 
 function _VirtualDom_moveBefore_(parent, child, reference)
 {
-	parent.moveBefore(child, reference);
+	if (!(child.parentNode === parent && child.nextSibling === reference))
+	{
+		parent.moveBefore(child, reference);
+	}
 }
 
 function _VirtualDom_moveAfter_(parent, child, reference)
 {
-	parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+	if (!(child.parentNode === parent && child.previousSibling === reference))
+	{
+		parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+	}
 }
 
 var _VirtualDom_moveBefore = typeof Element.prototype.moveBefore === 'function'
