@@ -1116,18 +1116,19 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 
 		case __2_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var i = 0; i < y.__kids.length; i++)
+			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
 			{
-				_VirtualDom_quickVisit(x.__kids[i], y.__kids[i], eventNode);
+				_VirtualDom_quickVisit(xKids[i], yKids[i], eventNode);
 			}
 			return domNode;
 
 		case __2_KEYED_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var i = 0; i < y.__keys.length; i++)
+			for (var xKids = x.__kids, yKids = y.__kids, keys = y.__keys, i = 0; i < keys.length; i++)
 			{
-				var key = y.__keys[i];
-				_VirtualDom_quickVisit(x.__kids[key], y.__kids[key], eventNode);
+				var key = keys[i];
+				_VirtualDom_quickVisit(xKids[key], yKids[key], eventNode);
 			}
 			return domNode;
 
@@ -1182,16 +1183,16 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 			return;
 
 		case __2_NODE:
-			for (var i = 0; i < x.__kids.length; i++)
+			for (var kids = x.__kids, i = 0; i < kids.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[i], false);
+				_VirtualDom_removeVisit(kids[i], false);
 			}
 			return;
 
 		case __2_KEYED_NODE:
-			for (var i = 0; i < x.__keys.length; i++)
+			for (var kids = x.__kids, keys = x.__keys, i = 0; i < keys.length; i++)
 			{
-				_VirtualDom_removeVisit(x.__kids[x.__keys[i]], false);
+				_VirtualDom_removeVisit(kids[keys[i]], false);
 			}
 			return;
 
@@ -1258,9 +1259,9 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 		// the correct order.
 		if (y.$ === __2_NODE)
 		{
-			for (var current = domNode.firstChild, i = 0; i < y.__kids.length; i++)
+			for (var current = domNode.firstChild, kids = y.__kids, i = 0; i < kids.length; i++)
 			{
-				var vNode = y.__kids[i];
+				var vNode = kids[i];
 				var child = _VirtualDom_renderTranslated(vNode, eventNode);
 				if (child === current)
 				{
@@ -1274,9 +1275,9 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 		}
 		else
 		{
-			for (var current = domNode.firstChild, i = 0; i < y.__keys.length; i++)
+			for (var current = domNode.firstChild, kids = y.__kids, keys = y.__keys, i = 0; i < keys.length; i++)
 			{
-				var vNode = y.__kids[y.__keys[i]];
+				var vNode = kids[keys[i]];
 				var child = _VirtualDom_renderTranslated(vNode, eventNode);
 				if (child === current)
 				{
