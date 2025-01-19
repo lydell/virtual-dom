@@ -50,7 +50,7 @@ function _VirtualDom_moveBefore_(parent, child, reference)
 
 function _VirtualDom_moveAfter_(parent, child, reference)
 {
-	parent.moveBefore(child, reference === null ? parent.firstChild : reference);
+	parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
 }
 
 var _VirtualDom_moveBefore = typeof Element.prototype.moveBefore === 'function'
