@@ -1477,7 +1477,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyLower === yKeyUpper)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[xKeyUpper], eventNode);
+				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[yKeyUpper], eventNode);
 				if (diffReturn[1])
 				{
 					translated = true;
@@ -1491,7 +1491,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyUpper == yKeyLower)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[xKeyLower], eventNode);
+				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[yKeyLower], eventNode);
 				if (diffReturn[1])
 				{
 					translated = true;
