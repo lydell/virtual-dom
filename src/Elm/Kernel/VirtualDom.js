@@ -1367,8 +1367,6 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	var xKeys = xParent.__keys;
 	var yKeys = yParent.__keys;
 
-	var translated = false;
-
 	var xIndexLower = 0;
 	var yIndexLower = 0;
 	var xIndexUpper = xKeys.length - 1;
@@ -1376,6 +1374,42 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 	var domNodeLower = null;
 	var domNodeUpper = null;
+
+	var translated = false;
+
+	var handleDiffReturnLower = function (diffReturn)
+	{
+		if (diffReturn[1])
+		{
+			translated = true;
+		}
+
+		// An extension might have removed an element we have rendered before,
+		// or moved it to another parent. In such cases, `parentDomNode.insertBefore(x, domNode)`
+		// and `parentDomNode.moveBefore(x, domNode)` would throw errors. Keep the
+		// previous reference element in those cases – that should still result in the correct
+		// element order, just with some element missing.
+		var domNode = diffReturn[0];
+		if (domNode.parentNode === parentDomNode)
+		{
+			domNodeLower = domNode;
+		}
+	};
+
+	var handleDiffReturnUpper = function (diffReturn)
+	{
+		if (diffReturn[1])
+		{
+			translated = true;
+		}
+
+		// Same as `handleDiffReturnLower`, but for `domNodeUpper` instead of `domNodeLower`.
+		var domNode = diffReturn[0];
+		if (domNode.parentNode === parentDomNode)
+		{
+			domNodeUpper = domNode;
+		}
+	};
 
 	while (true)
 	{
@@ -1390,13 +1424,9 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			if (xKey === yKey)
 			{
 				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
-				if (diffReturn[1])
-				{
-					translated = true;
-				}
 				xIndexLower++;
 				yIndexLower++;
-				domNodeLower = diffReturn[0];
+				handleDiffReturnLower(diffReturn);
 				continue;
 			}
 
@@ -1439,13 +1469,9 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			if (xKey === yKey)
 			{
 				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
-				if (diffReturn[1])
-				{
-					translated = true;
-				}
 				xIndexUpper--;
 				yIndexUpper--;
-				domNodeUpper = diffReturn[0];
+				handleDiffReturnUpper(diffReturn);
 				continue;
 			}
 
@@ -1490,28 +1516,20 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 			if (xKeyLower === yKeyUpper)
 			{
 				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[yKeyUpper], eventNode);
-				if (diffReturn[1])
-				{
-					translated = true;
-				}
 				xIndexLower++;
 				yIndexUpper--;
 				_VirtualDom_moveBefore(parentDomNode, diffReturn[0], domNodeUpper);
-				domNodeUpper = diffReturn[0];
+				handleDiffReturnUpper(diffReturn);
 				swapped = true;
 			}
 
 			if (xKeyUpper == yKeyLower)
 			{
 				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[yKeyLower], eventNode);
-				if (diffReturn[1])
-				{
-					translated = true;
-				}
 				yIndexLower++;
 				xIndexUpper--;
 				_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
-				domNodeLower = diffReturn[0];
+				handleDiffReturnLower(diffReturn);
 				swapped = true;
 			}
 		}
@@ -1538,12 +1556,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		{
 			var x = xKids[yKey];
 			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
-			if (diffReturn[1])
-			{
-				translated = true;
-			}
 			_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
-			domNodeLower = diffReturn[0];
+			handleDiffReturnLower(diffReturn);
 		}
 		else
 		{
