@@ -1673,6 +1673,14 @@ var _VirtualDom_camelCaseBoolProperties = {
 
 function _VirtualDom_virtualize(node)
 {
+	// The debugger has always done `_VirtualDom_virtualize(document)` instead of
+	// `_VirtualDom_virtualize(document.body)` by mistake. To be backwards compatible
+	// with elm/browser, support that here.
+	if (node === _VirtualDom_doc)
+	{
+		node = _VirtualDom_doc.body;
+	}
+
 	var vNode = _VirtualDom_virtualizeHelp(node);
 	if (vNode)
 	{
