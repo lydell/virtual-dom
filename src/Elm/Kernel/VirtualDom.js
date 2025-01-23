@@ -65,13 +65,11 @@ function _VirtualDom_moveAfter_(parent, child, reference)
 	}
 }
 
-var _VirtualDom_moveBefore = typeof Element.prototype.moveBefore === 'function'
-	? _VirtualDom_moveBefore_
-	: _VirtualDom_insertBefore;
+var _VirtualDom_supports_moveBefore = typeof Element !== 'undefined' && typeof Element.prototype.moveBefore === 'function';
 
-var _VirtualDom_moveAfter = typeof Element.prototype.moveBefore === 'function'
-	? _VirtualDom_moveAfter_
-	: _VirtualDom_insertAfter;
+var _VirtualDom_moveBefore = _VirtualDom_supports_moveBefore ? _VirtualDom_moveBefore_ : _VirtualDom_insertBefore;
+
+var _VirtualDom_moveAfter = _VirtualDom_supports_moveBefore ? _VirtualDom_moveAfter_ : _VirtualDom_insertAfter;
 
 var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
 {
