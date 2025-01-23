@@ -160,28 +160,28 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = Object.create(null), keys = []; kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = [], kidsMap = Object.create(null); kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
 			var kid = kidList.a;
 			var key = kid.a;
 			// Handle duplicate keys by adding a postfix.
-			while (key in kids)
+			while (key in kidsMap)
 			{
 				key += _VirtualDom_POSTFIX;
 			}
-			kids[key] = kid.b;
-			keys.push(key);
+			kids.push(kid);
+			kidsMap[key] = kid.b;
 		}
 
 		return _VirtualDom_wrap({
 			$: __2_KEYED_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
-			// __kids is a dict from key to node.
+			// __kids holds the order and length of the kids.
 			__kids: kids,
-			// __keys holds the order and length of the keys.
+			// __kidsMap is a dict from key to node.
 			// Note when iterating JavaScript objects, numeric-looking keys come first.
-			__keys: keys,
+			__kidsMap: kidsMap,
 			__namespace: namespace
 		});
 	});
@@ -529,19 +529,9 @@ function _VirtualDom_render(vNode, eventNode)
 
 	_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
 
-	if (tag === __2_NODE)
+	for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 	{
-		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
-		{
-			_VirtualDom_appendChild(domNode, _VirtualDom_render(kids[i], eventNode));
-		}
-	}
-	else
-	{
-		for (var kids = vNode.__kids, keys = vNode.__keys, i = 0; i < keys.length; i++)
-		{
-			_VirtualDom_appendChild(domNode, _VirtualDom_render(kids[keys[i]], eventNode));
-		}
+		_VirtualDom_appendChild(domNode, _VirtualDom_render(tag === __2_NODE ? kids[i] : kids[i].b, eventNode));
 	}
 
 	_VirtualDom_storeDomNode(vNode, domNode);
@@ -581,19 +571,9 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 
 		_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
 
-		if (tag === __2_NODE)
+		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 		{
-			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
-			{
-				_VirtualDom_appendChild(domNode, _VirtualDom_render(kids[i], eventNode));
-			}
-		}
-		else
-		{
-			for (var kids = vNode.__kids, keys = vNode.__keys, i = 0; i < keys.length; i++)
-			{
-				_VirtualDom_appendChild(domNode, _VirtualDom_render(kids[keys[i]], eventNode));
-			}
+			_VirtualDom_appendChild(domNode, _VirtualDom_render(tag === __2_NODE ? kids[i] : kids[i].b, eventNode));
 		}
 
 		_VirtualDom_storeDomNodeTranslated(vNode, domNode);
@@ -1141,10 +1121,9 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 
 		case __2_KEYED_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var xKids = x.__kids, yKids = y.__kids, keys = y.__keys, i = 0; i < keys.length; i++)
+			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
 			{
-				var key = keys[i];
-				_VirtualDom_quickVisit(xKids[key], yKids[key], eventNode);
+				_VirtualDom_quickVisit(xKids[i].b, yKids[i].b, eventNode);
 			}
 			return domNode;
 
@@ -1206,9 +1185,9 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 			return;
 
 		case __2_KEYED_NODE:
-			for (var kids = x.__kids, keys = x.__keys, i = 0; i < keys.length; i++)
+			for (var kids = x.__kids, i = 0; i < kids.length; i++)
 			{
-				_VirtualDom_removeVisit(kids[keys[i]], false);
+				_VirtualDom_removeVisit(kids[i].b, false);
 			}
 			return;
 
@@ -1270,39 +1249,21 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 			}
 		}
 
-		// Re-render text nodes and font tags. (It returns the already
-		// existing DOM node for the rest.) Then make sure everything is in
-		// the correct order.
-		if (y.$ === __2_NODE)
+		for (var current = domNode.firstChild, i = 0; i < y.__kids.length; i++)
 		{
-			for (var current = domNode.firstChild, kids = y.__kids, i = 0; i < kids.length; i++)
+			var kid = y.__kids[i];
+			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
+			// Re-render text nodes and font tags. (It returns the already
+			// existing DOM node for the rest.) Then make sure everything is in
+			// the correct order.
+			var child = _VirtualDom_renderTranslated(vNode, eventNode);
+			if (child === current)
 			{
-				var vNode = kids[i];
-				var child = _VirtualDom_renderTranslated(vNode, eventNode);
-				if (child === current)
-				{
-					current = current.nextSibling;
-				}
-				else
-				{
-					_VirtualDom_moveBefore(domNode, child, current)
-				}
+				current = current.nextSibling;
 			}
-		}
-		else
-		{
-			for (var current = domNode.firstChild, kids = y.__kids, keys = y.__keys, i = 0; i < keys.length; i++)
+			else
 			{
-				var vNode = kids[keys[i]];
-				var child = _VirtualDom_renderTranslated(vNode, eventNode);
-				if (child === current)
-				{
-					current = current.nextSibling;
-				}
-				else
-				{
-					_VirtualDom_moveBefore(domNode, child, current)
-				}
+				_VirtualDom_insertBefore(domNode, child, current)
 			}
 		}
 	}
@@ -1368,13 +1329,13 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	var xKids = xParent.__kids;
 	var yKids = yParent.__kids;
 
-	var xKeys = xParent.__keys;
-	var yKeys = yParent.__keys;
+	var xKidsMap = xParent.__kidsMap;
+	var yKidsMap = yParent.__kidsMap;
 
 	var xIndexLower = 0;
 	var yIndexLower = 0;
-	var xIndexUpper = xKeys.length - 1;
-	var yIndexUpper = yKeys.length - 1;
+	var xIndexUpper = xKids.length - 1;
+	var yIndexUpper = yKids.length - 1;
 
 	var domNodeLower = null;
 	var domNodeUpper = null;
@@ -1420,10 +1381,12 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		// Consume from the start until we get stuck.
 		while (xIndexLower <= xIndexUpper && yIndexLower <= yIndexUpper)
 		{
-			var xKey = xKeys[xIndexLower];
-			var yKey = yKeys[yIndexLower];
-			var x = xKids[xKey];
-			var y = yKids[yKey];
+			var xKid = xKids[xIndexLower];
+			var yKid = yKids[yIndexLower];
+			var xKey = xKid.a;
+			var yKey = yKid.a;
+			var x = xKid.b;
+			var y = yKid.b;
 
 			if (xKey === yKey)
 			{
@@ -1436,7 +1399,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			var xMoved = false;
 
-			if (xKey in yKids)
+			if (xKey in yKidsMap)
 			{
 				xMoved = true;
 			}
@@ -1446,7 +1409,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				xIndexLower++;
 			}
 
-			if (yKey in xKids)
+			if (yKey in xKidsMap)
 			{
 				if (xMoved)
 				{
@@ -1465,10 +1428,12 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		// Consume from the end until we get stuck.
 		while (xIndexUpper > xIndexLower && yIndexUpper > yIndexLower)
 		{
-			var xKey = xKeys[xIndexUpper];
-			var yKey = yKeys[yIndexUpper];
-			var x = xKids[xKey];
-			var y = yKids[yKey];
+			var xKid = xKids[xIndexUpper];
+			var yKid = yKids[yIndexUpper];
+			var xKey = xKid.a;
+			var yKey = yKid.a;
+			var x = xKid.b;
+			var y = yKid.b;
 
 			if (xKey === yKey)
 			{
@@ -1481,7 +1446,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			var xMoved = false;
 
-			if (xKey in yKids)
+			if (xKey in yKidsMap)
 			{
 				xMoved = true;
 			}
@@ -1491,7 +1456,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				xIndexUpper--;
 			}
 
-			if (yKey in xKids)
+			if (yKey in xKidsMap)
 			{
 				if (xMoved)
 				{
@@ -1512,14 +1477,19 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		// Check if the start or end can be unstuck by a swap.
 		if (xIndexLower < xIndexUpper && yIndexLower < yIndexUpper)
 		{
-			var xKeyLower = xKeys[xIndexLower];
-			var yKeyLower = yKeys[yIndexLower];
-			var xKeyUpper = xKeys[xIndexUpper];
-			var yKeyUpper = yKeys[yIndexUpper];
+			var xKidLower = xKids[xIndexLower];
+			var yKidLower = yKids[yIndexLower];
+			var xKidUpper = xKids[xIndexUpper];
+			var yKidUpper = yKids[yIndexUpper];
+
+			var xKeyLower = xKidLower.a;
+			var yKeyLower = yKidLower.a;
+			var xKeyUpper = xKidUpper.a;
+			var yKeyUpper = yKidUpper.a;
 
 			if (xKeyLower === yKeyUpper)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyLower], yKids[yKeyUpper], eventNode);
+				var diffReturn = _VirtualDom_diffHelp(xKidLower.b, yKidUpper.b, eventNode);
 				xIndexLower++;
 				yIndexUpper--;
 				_VirtualDom_moveBefore(parentDomNode, diffReturn[0], domNodeUpper);
@@ -1529,7 +1499,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 			if (xKeyUpper == yKeyLower)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKids[xKeyUpper], yKids[yKeyLower], eventNode);
+				var diffReturn = _VirtualDom_diffHelp(xKidUpper.b, yKidLower.b, eventNode);
 				yIndexLower++;
 				xIndexUpper--;
 				_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
@@ -1554,11 +1524,12 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	//   be worse than the previous implementation.
 	for (; yIndexLower <= yIndexUpper; yIndexLower++)
 	{
-		var yKey = yKeys[yIndexLower];
-		var y = yKids[yKey];
-		if (yKey in xKids)
+		var yKid = yKids[yIndexLower];
+		var yKey = yKid.a;
+		var y = yKid.b;
+		if (yKey in xKidsMap)
 		{
-			var x = xKids[yKey];
+			var x = xKidsMap[yKey];
 			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
 			_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
 			handleDiffReturnLower(diffReturn);
@@ -1574,9 +1545,10 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	// Remove the remaining old virtual DOM nodes that aren’t present in the new virtual DOM.
 	for (; xIndexLower <= xIndexUpper; xIndexLower++)
 	{
-		var xKey = xKeys[xIndexLower];
-		if (!(xKey in yKids)) {
-			_VirtualDom_removeVisit(xKids[xKey], true);
+		var xKid = xKids[xIndexLower];
+		var xKey = xKid.a;
+		if (!(xKey in yKidsMap)) {
+			_VirtualDom_removeVisit(xKid.b, true);
 		}
 	}
 
@@ -1802,12 +1774,11 @@ function _VirtualDom_virtualizeHelp(node)
 function _VirtualDom_dekey(keyedNode)
 {
 	var keyedKids = keyedNode.__kids;
-	var keys = keyedNode.__keys;
-	var len = keys.length;
+	var len = keyedKids.length;
 	var kids = new Array(len);
 	for (var i = 0; i < len; i++)
 	{
-		kids[i] = keyedKids[keys[i]];
+		kids[i] = keyedKids[i].b;
 	}
 
 	return Object.defineProperty({
