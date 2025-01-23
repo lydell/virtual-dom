@@ -1143,7 +1143,6 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 
 		case __2_KEYED_NODE:
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var i = 0; i < y.__keys.length; i++)
 			for (var xKids = x.__kids, yKids = y.__kids, keys = y.__keys, i = 0; i < keys.length; i++)
 			{
 				var key = keys[i];
