@@ -120,7 +120,7 @@ function _VirtualDom_text(string)
 {
 	return _VirtualDom_wrap({
 		$: __2_TEXT,
-		__text: string,
+		__text: string
 	});
 }
 
