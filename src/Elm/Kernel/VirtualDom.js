@@ -154,7 +154,11 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
 			__kids: kids,
-			__namespace: namespace
+			__namespace: namespace,
+			// Unused, only exists for backwards compatibility with:
+			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L279
+			// Note: Due to that decoder, we can’t change the shape of virtual DOM nodes at all.
+			__descendantsCount: 0
 		});
 	});
 });
@@ -171,29 +175,21 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 {
 	return F2(function(factList, kidList)
 	{
-		for (var kids = [], kidsMap = Object.create(null); kidList.b; kidList = kidList.b) // WHILE_CONS
+		for (var kids = []; kidList.b; kidList = kidList.b) // WHILE_CONS
 		{
-			var kid = kidList.a;
-			var key = kid.a;
-			// Handle duplicate keys by adding a postfix.
-			while (key in kidsMap)
-			{
-				key += _VirtualDom_POSTFIX;
-			}
-			kids.push(kid);
-			kidsMap[key] = kid.b;
+			kids.push(kidList.a);
 		}
 
 		return _VirtualDom_wrap({
 			$: __2_KEYED_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
-			// __kids holds the order and length of the kids.
 			__kids: kids,
-			// __kidsMap is a dict from key to node.
-			// Note when iterating JavaScript objects, numeric-looking keys come first.
-			__kidsMap: kidsMap,
-			__namespace: namespace
+			__namespace: namespace,
+			// Unused, only exists for backwards compatibility with:
+			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L268
+			// Note: Due to that decoder, we can’t change the shape of virtual DOM nodes at all.
+			__descendantsCount: 0
 		});
 	});
 });
@@ -1340,8 +1336,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	var xKids = xParent.__kids;
 	var yKids = yParent.__kids;
 
-	var xKidsMap = xParent.__kidsMap;
-	var yKidsMap = yParent.__kidsMap;
+	var xKidsMap = _VirtualDom_kidsMap(xParent.__kids);
+	var yKidsMap = _VirtualDom_kidsMap(yParent.__kids);
 
 	var xIndexLower = 0;
 	var yIndexLower = 0;
@@ -1567,6 +1563,23 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 }
 
 var _VirtualDom_POSTFIX = '_elmW6BL';
+
+function _VirtualDom_kidsMap(kids)
+{
+	var kidsMap = Object.create(null);
+	for (var i = 0; i < kids.length; i++)
+	{
+		var kid = kids[i];
+		var key = kid.a;
+		// Handle duplicate keys by adding a postfix.
+		while (key in kidsMap)
+		{
+			key += _VirtualDom_POSTFIX;
+		}
+		kidsMap[key] = kid.b;
+	}
+	return kidsMap;
+}
 
 // See `_VirtualDom_diff`.
 function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
