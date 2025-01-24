@@ -14,6 +14,17 @@ import VirtualDom exposing (toHandlerInt)
 
 
 
+// Double underscore properties are replaced with single letters.
+// Exactly which letter is used depends on the order the properties are first mentioned.
+// This preserves the letters from v1.0.3 for compatibility with tools that assume those names.
+// elm-explorations/test: https://github.com/elm-explorations/test/blob/d5eb84809de0f8bbf50303efd26889092c800609/src/Elm/Kernel/HtmlAsJson.js
+// elm-pages: https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/generator/src/build.js#L642
+// The list of names was extracted using the following command:
+// grep --only --extended-regexp '_{2}[a-z]\w+' src/Elm/Kernel/VirtualDom.js | awk '!visited[$0]++'
+void { __text: null, __descendantsCount: null, __tag: null, __facts: null, __kids: null, __namespace: null, __model: null, __render: null, __diff: null, __tagger: null, __node: null, __refs: null, __thunk: null, __key: null, __value: null, __parent: null, __handler: null, __index: null, __data: null, __domNode: null, __eventNode: null, __length: null, __patches: null, __inserts: null, __endInserts: null, __vnode: null, __entry: null };
+
+
+
 // HELPERS
 
 
