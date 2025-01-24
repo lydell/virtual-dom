@@ -1037,8 +1037,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 	if (y.$ === __2_THUNK)
 	{
-		y.__node = y.__thunk();
-		return _VirtualDom_diffHelp(x, y.__node, eventNode);
+		return _VirtualDom_diffHelp(x, y.__node || (y.__node = y.__thunk()), eventNode);
 	}
 
 	var domNode = _VirtualDom_consumeDomNode(x, y);
