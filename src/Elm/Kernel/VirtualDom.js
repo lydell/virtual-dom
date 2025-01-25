@@ -165,6 +165,7 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 			__namespace: namespace,
 			// Unused, only exists for backwards compatibility with:
 			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L279
+			// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L281
 			__descendantsCount: 0
 		});
 	});
@@ -200,11 +201,13 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
 			// __kids holds the order and length of the kids.
-			// elm-explorations/test assumes keyed nodes have kids like this:
-			// https://github.com/elm-explorations/test/blob/d5eb84809de0f8bbf50303efd26889092c800609/src/Elm/Kernel/HtmlAsJson.js#L37
 			__kids: kids,
 			// __kidsMap is a dict from key to node.
 			// Note when iterating JavaScript objects, numeric-looking keys come first.
+			// So we need both __kids and __kidsMap.
+			// Another reason is backwards compatibility with:
+			// https://github.com/elm-explorations/test/blob/d5eb84809de0f8bbf50303efd26889092c800609/src/Elm/Kernel/HtmlAsJson.js#L37
+			// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/generator/src/build.js#L675
 			__kidsMap: kidsMap,
 			__namespace: namespace,
 			__descendantsCount: 0 // See _VirtualDom_nodeNS.
