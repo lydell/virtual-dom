@@ -717,10 +717,10 @@ function _VirtualDom_applyStyles(domNode, prevStyles, styles)
 		{
 			// `.setProperty` must be used for `--custom-properties`.
 			// Standard properties never start with a dash.
-			// `.setProperty` requires for example "border-radius" with a dash,
-			// while both `.style["border-radius"]` and `.style["borderRadius"]`.
+			// `.setProperty` requires for example 'border-radius' with a dash,
+			// while both `.style['border-radius']` and `.style['borderRadius']` work.
 			// Elm used to only use `.style`. In order to support existing code like
-			// `Html.Attributes.style "borderRadius" "5px"` we default to `.style`
+			// `Html.Attributes.style 'borderRadius' '5px'` we default to `.style`
 			// and only use `.setProperty` if the property name starts with a dash.
 			if (key.charCodeAt(0) === 45)
 			{
@@ -1639,7 +1639,7 @@ The mapping currently only lists the ones that have dedicated functions in elm/h
 
 There are more though! Running the following code in the console gives more results:
 
-[...new Set(Object.getOwnPropertyNames(window).filter(d => d.startsWith("HTML") || d === "Node" || d === "Element" || d === "EventTarget").flatMap(d => {c = window[d]; m = c.name.match(/^HTML(\w+)Element$/); e = document.createElement(m ? m[1].replace("Anchor", "a").replace("Paragraph", "p").replace("Image", "img").replace("Media", "video").replace(/^([DOU])List$/, "$1l").toLowerCase() : "div"); return Object.getOwnPropertyNames(c.prototype).filter(n => typeof e[n] === "boolean")}))].filter(n => /[A-Z]/.test(n)).sort()
+[...new Set(Object.getOwnPropertyNames(window).filter(d => d.startsWith('HTML') || d === 'Node' || d === 'Element' || d === 'EventTarget').flatMap(d => {c = window[d]; m = c.name.match(/^HTML(\w+)Element$/); e = document.createElement(m ? m[1].replace('Anchor', 'a').replace('Paragraph', 'p').replace('Image', 'img').replace('Media', 'video').replace(/^([DOU])List$/, '$1l').toLowerCase() : 'div'); return Object.getOwnPropertyNames(c.prototype).filter(n => typeof e[n] === 'boolean')}))].filter(n => /[A-Z]/.test(n)).sort()
 
 Potential candidates to support (should probably add to elm/html first):
 disablePictureInPicture – video
@@ -1683,9 +1683,9 @@ So when virtualizing, we actually want to turn the `checked` attribute back into
 (even if according to the DOM, it's `.defaultChecked`). Same thing for `muted` and `selected`.
 */
 var _VirtualDom_camelCaseBoolProperties = {
-	novalidate: "noValidate",
-	readonly: "readOnly",
-	ismap: "isMap"
+	novalidate: 'noValidate',
+	readonly: 'readOnly',
+	ismap: 'isMap'
 };
 
 
