@@ -491,12 +491,16 @@ function _VirtualDom_organizeFacts(factList)
 		var key = entry.__key;
 		var value = entry.__value;
 
+		if (tag === 'a__1_PROP')
+		{
+			(key === 'className')
+				? _VirtualDom_addClass(facts, key, __Json_unwrap(value))
+				: facts[key] = __Json_unwrap(value);
+
+			continue;
+		}
+
 		var subFacts = facts[tag] || (facts[tag] = {});
-		(tag === 'a__1_PROP')
-			? (key === 'className')
-				? _VirtualDom_addClass(subFacts, key, __Json_unwrap(value))
-				: subFacts[key] = __Json_unwrap(value)
-			:
 		(tag === 'a__1_ATTR' && key === 'class')
 			? _VirtualDom_addClass(subFacts, key, value)
 			: subFacts[key] = value;
@@ -649,10 +653,16 @@ function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 		_VirtualDom_removeStyles(domNode, prevFacts.a__1_STYLE, facts.a__1_STYLE || {});
 	}
 
-	if (prevFacts.a__1_PROP !== undefined)
-	{
-		_VirtualDom_removeProps(domNode, prevFacts.a__1_PROP, facts.a__1_PROP || {});
-	}
+	// `_VirtualDom_organizeFacts` puts properties directly on the `facts` object,
+	// instead of at `facts.a__1_PROP` which would have been more reasonable. So
+	// we pass the entire `facts` as the props, and `_VirtualDom_removeProps` needs
+	// to ignore `a__1_ATTR` etc.
+	// This results in that you can mess things up by setting properties called "a0" to "a4",
+	// but it’s not a big deal.
+	// We can’t fix this because of backwards compatibility with:
+	// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L328
+	// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L330
+	_VirtualDom_removeProps(domNode, prevFacts, facts);
 
 	if (prevFacts.a__1_ATTR !== undefined)
 	{
@@ -671,10 +681,8 @@ function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 		_VirtualDom_applyStyles(domNode, prevFacts.a__1_STYLE || {}, facts.a__1_STYLE);
 	}
 
-	if (facts.a__1_PROP !== undefined)
-	{
-		_VirtualDom_applyProps(domNode, prevFacts.a__1_PROP || {}, facts.a__1_PROP);
-	}
+	// See the comment at the `_VirtualDom_removeProps` call earlier in this function.
+	_VirtualDom_applyProps(domNode, facts);
 
 	if (facts.a__1_ATTR !== undefined)
 	{
@@ -750,10 +758,16 @@ function _VirtualDom_removeStyles(domNode, prevStyles, styles)
 
 // APPLY PROPS
 
-function _VirtualDom_applyProps(domNode, prevProps, props)
+function _VirtualDom_applyProps(domNode, props)
 {
 	for (var key in props)
 	{
+		// See `_VirtualDom_applyFacts` for why we need to filter these.
+		if (key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		{
+			continue;
+		}
+
 		var value = props[key];
 		// `value`, `checked`, `selected` and `selectedIndex` can all change via
 		// user interactions, so for those it’s important to compare to the
@@ -775,6 +789,12 @@ function _VirtualDom_removeProps(domNode, prevProps, props)
 {
 	for (var key in prevProps)
 	{
+		// See `_VirtualDom_applyFacts` for why we need to filter these.
+		if (key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		{
+			continue;
+		}
+
 		if (!(key in props))
 		{
 			var value = props[key];
