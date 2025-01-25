@@ -207,10 +207,7 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			// Note when iterating JavaScript objects, numeric-looking keys come first.
 			__kidsMap: kidsMap,
 			__namespace: namespace,
-			// Unused, only exists for backwards compatibility with:
-			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L268
-			// Note: Due to that decoder, we can’t change the shape of virtual DOM nodes at all.
-			__descendantsCount: 0
+			__descendantsCount: 0 // See _VirtualDom_nodeNS.
 		});
 	});
 });
@@ -244,7 +241,8 @@ var _VirtualDom_map = F2(function(tagger, node)
 	return {
 		$: __2_TAGGER,
 		__tagger: tagger,
-		__node: node
+		__node: node,
+		__descendantsCount: 0 // See _VirtualDom_nodeNS.
 	};
 });
 
@@ -1814,7 +1812,8 @@ function _VirtualDom_dekey(keyedNode)
 		__tag: keyedNode.__tag,
 		__facts: keyedNode.__facts,
 		__kids: kids,
-		__namespace: keyedNode.__namespace
+		__namespace: keyedNode.__namespace,
+		__descendantsCount: keyedNode.__descendantsCount
 	}, '_', {
 		value: keyedNode._
 	});
