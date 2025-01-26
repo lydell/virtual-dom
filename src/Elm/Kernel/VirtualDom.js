@@ -763,7 +763,7 @@ function _VirtualDom_applyProps(domNode, props)
 	for (var key in props)
 	{
 		// See `_VirtualDom_applyFacts` for why we need to filter these.
-		if (key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
 		{
 			continue;
 		}
@@ -790,7 +790,7 @@ function _VirtualDom_removeProps(domNode, prevProps, props)
 	for (var key in prevProps)
 	{
 		// See `_VirtualDom_applyFacts` for why we need to filter these.
-		if (key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
 		{
 			continue;
 		}
