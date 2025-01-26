@@ -1752,9 +1752,37 @@ function _VirtualDom_virtualizeHelp(node)
 	for (var i = attrs.length; i--; )
 	{
 		var attr = attrs[i];
-		var namespaceURI = attr.namespaceURI;
 		var name = attr.name;
 		var value = attr.value;
+
+		// The `style` attribute and `node.style` are linked. While `node.style` contains
+		// every single CSS property, it’s possible to loop over only the styles that have
+		// been set via `node.style.length`. Unfortunately, `node.style` expands shorthand
+		// properties and normalizes values. For example, `padding: 0` is turned into
+		// `padding-top: 0px; padding-bottom: 0px; ...`.
+		// The best bet is actually parsing the styles ourselves. Naively splitting on `;`
+		// is not 100 % correct, for example it won’t work for `content: ";"`. It will work
+		// in 99 % of cases though, since putting a semicolon in a value isn’t that common.
+		// And even in those cases, nothing will break. We’ll just apply a few styles
+		// unnecessarily at init.
+		if (name === "style")
+		{
+			var parts = value.split(";");
+			for (var j = parts.length; j--; )
+			{
+				var part = parts[j];
+				var index = part.indexOf(":");
+				if (index !== -1)
+				{
+					var cssKey = part.slice(0, index).trim();
+					var cssValue = part.slice(index + 1).trim();
+					attrList = __List_Cons(A2(_VirtualDom_style, cssKey, cssValue), attrList);
+				}
+			}
+			continue;
+		}
+
+		var namespaceURI = attr.namespaceURI;
 		var propertyName = _VirtualDom_camelCaseBoolProperties[name] || name;
 		var propertyValue = node[propertyName];
 		// Turning attributes into virtual DOM representations is not an exact science.
