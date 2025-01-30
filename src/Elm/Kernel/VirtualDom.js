@@ -1298,9 +1298,9 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 			}
 		}
 
-		for (var current = domNode.firstChild, i = 0; i < y.__kids.length; i++)
+		for (var current = domNode.firstChild, kids = y.__kids, i = 0; i < kids.length; i++)
 		{
-			var kid = y.__kids[i];
+			var kid = kids[i];
 			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
 			// Re-render text nodes and font tags. (It returns the already
 			// existing DOM node for the rest.) Then make sure everything is in
