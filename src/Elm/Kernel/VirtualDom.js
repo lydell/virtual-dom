@@ -1099,7 +1099,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		}
 		else
 		{
-			return [_VirtualDom_applyPatchRedraw(y, eventNode), false];
+			return _VirtualDom_applyPatchRedraw(y, eventNode);
 		}
 	}
 
@@ -1127,7 +1127,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
-				return [_VirtualDom_applyPatchRedraw(y, eventNode), false];
+				return _VirtualDom_applyPatchRedraw(y, eventNode);
 			}
 
 			_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
@@ -1275,16 +1275,21 @@ function _VirtualDom_consumeDomNode(x, y)
 
 function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 {
+	var translated = false;
+
 	// Bail if obvious indicators have changed. Implies more serious
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		return _VirtualDom_applyPatchRedraw(y, eventNode);
+		var redrawReturn = _VirtualDom_applyPatchRedraw(y, eventNode);
+		domNode = redrawReturn[0];
+		translated = redrawReturn[1];
 	}
-
-	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
-
-	var translated = diffKids(domNode, x, y, eventNode);
+	else
+	{
+		_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
+		translated = diffKids(domNode, x, y, eventNode);
+	}
 
 	if (translated)
 	{
@@ -1622,12 +1627,16 @@ function _VirtualDom_applyPatchRedraw(vNode, eventNode)
 	var parentNode = domNode.parentNode;
 	var newNode = _VirtualDom_render(vNode, eventNode);
 
-	if (parentNode && newNode !== domNode)
+	if (parentNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
+		return [newNode, false];
 	}
-
-	return newNode;
+	else
+	{
+		// The DOM node having no parent indicates that the node has been replaced by translation plugins.
+		return [newNode, true];
+	}
 }
 
 /*
