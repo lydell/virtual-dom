@@ -531,16 +531,16 @@ function _VirtualDom_render(vNode, eventNode)
 		return _VirtualDom_render(vNode.__node || (vNode.__node = vNode.__thunk()), eventNode);
 	}
 
+	if (tag === __2_TAGGER)
+	{
+		return _VirtualDom_render(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
+	}
+
 	if (tag === __2_TEXT)
 	{
 		var domNode = _VirtualDom_doc.createTextNode(vNode.__text);
 		_VirtualDom_storeDomNode(vNode, domNode)
 		return domNode;
-	}
-
-	if (tag === __2_TAGGER)
-	{
-		return _VirtualDom_render(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
 	}
 
 	if (tag === __2_CUSTOM)
@@ -576,7 +576,7 @@ function _VirtualDom_render(vNode, eventNode)
 
 // Like `_VirtualDom_render`, but:
 // - Assumes that we have already gone through diffing.
-// - Only re-renders text nodes and font tags.
+// - Only re-renders text nodes.
 function _VirtualDom_renderTranslated(vNode, eventNode)
 {
 	var tag = vNode.$;
@@ -586,34 +586,16 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 		return _VirtualDom_renderTranslated(vNode.__node, eventNode);
 	}
 
-	if (tag === __2_TEXT)
-	{
-		var domNode = _VirtualDom_doc.createTextNode(vNode.__text);
-		_VirtualDom_storeDomNodeTranslated(vNode, domNode)
-		return domNode;
-	}
-
 	if (tag === __2_TAGGER)
 	{
 		return _VirtualDom_renderTranslated(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
 	}
 
-	if ((tag === __2_NODE || tag === __2_KEYED_NODE) && vNode.__tag === 'font')
+	if (tag === __2_TEXT)
 	{
-		var domNode = vNode.__namespace
-			? _VirtualDom_doc.createElementNS(vNode.__namespace, vNode.__tag)
-			: _VirtualDom_doc.createElement(vNode.__tag);
-
-		_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
-
-		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
-		{
-			_VirtualDom_appendChild(domNode, _VirtualDom_render(tag === __2_NODE ? kids[i] : kids[i].b, eventNode));
-		}
-
-		_VirtualDom_storeDomNodeTranslated(vNode, domNode);
-
-		return domNode;
+		var newNode = _VirtualDom_doc.createTextNode(vNode.__text);
+		vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1] = newNode;
+		return newNode;
 	}
 
 	return vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1];
@@ -629,14 +611,6 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 		vNode._.__renderedAt = _VirtualDom_renderCount;
 	}
 	vNode._.__newDomNodes.push(domNode);
-}
-
-// Like `_VirtualDom_storeDomNode`, but assumes that we have already gone
-// through diffing, and increased counters. This means that we should replace
-// the “previous” DOM node.
-function _VirtualDom_storeDomNodeTranslated(vNode, domNode)
-{
-	vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1] = domNode;
 }
 
 
@@ -1323,34 +1297,67 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 	var translated = diffKids(domNode, x, y, eventNode);
 
+	// If at least one kid was detected to have been translated (by Google Translate for example),
+	// we need to go through all kids and actual DOM node children once more. If a text node
+	// has been replaced by another with translated text, we don’t know _which_ text node it has
+	// been replace by. We have to rerender _all_ text inside the element. This has the side benefit
+	// of increasing the likelihood of getting a well-formed sentence after the translator re-translates
+	// the text. Since different languages have different word order, it’s the best to translate
+	// whole sentences at the minimum. It’s difficult to heuristically find a sentence or paragraph
+	// though. “All the text directly inside this element” is the best we’ve got so far.
 	if (translated)
 	{
 		_VirtualDom_everTranslated = true;
-		for (var i = domNode.childNodes.length - 1; i >= 0; i--)
-		{
-			var child = domNode.childNodes[i];
-			// Remove all text nodes, and font tags (Google Translate).
-			if (child.nodeType === 3 || child.localName === 'font')
-			{
-				domNode.removeChild(child);
-			}
-		}
 
-		for (var current = domNode.firstChild, kids = y.__kids, i = 0; i < kids.length; i++)
+		for (var current = null, kids = y.__kids, i = kids.length - 1, j = domNode.childNodes.length - 1; i >= 0; i--)
 		{
 			var kid = kids[i];
 			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
-			// Re-render text nodes and font tags. (It returns the already
-			// existing DOM node for the rest.) Then make sure everything is in
-			// the correct order.
+
+			// `child` is going to be one of:
+			// - For text nodes: A new text node that isn’t inserted into the DOM.
+			// - For other nodes: The already existing DOM node. An extension
+			//   might have removed it, though, or moved it to another parent.
 			var child = _VirtualDom_renderTranslated(vNode, eventNode);
-			if (child === current)
+
+			if (child.parentNode === domNode)
 			{
-				current = current.nextSibling;
+				// Go through the actual children of `domNode` until we hit `child`,
+				// which we just checked for sure is a child of `domNode`. We know
+				// that all “our” kids are in the correct order.
+				for (; j >= 0; j--)
+				{
+					current = domNode.childNodes[j];
+					if (current === child)
+					{
+						j--;
+						break;
+					}
+					// Any element we come across until we find `child` must be created by others,
+					// or be text nodes created by us but abandoned in `_VirtualDom_renderTranslated`.
+					// Remove all text nodes, and all font tags (most likely created by Google Translate).
+					if (current.nodeType === 3 || current.localName === 'font')
+					{
+						domNode.removeChild(current);
+					}
+				}
 			}
 			else
 			{
-				_VirtualDom_insertBefore(domNode, child, current)
+				// Most likely, we are inserting a new text node here.
+				// It could also be an element (re-)moved by an extension.
+				_VirtualDom_insertBefore(domNode, child, current);
+				current = domNode;
+			}
+		}
+
+		// If there are more elements before our first kid, go through them as well like above.
+		for (; j >= 0; j--)
+		{
+			current = domNode.childNodes[j];
+			if (child.nodeType === 3 || current.localName === 'font')
+			{
+				domNode.removeChild(current);
 			}
 		}
 	}
