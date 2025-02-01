@@ -1027,7 +1027,8 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 	{
 		return {
 			__domNode: _VirtualDom_quickVisit(x, y, eventNode),
-			__detail: __3_NO_DETAIL
+			__translated: false,
+			__reinsert: false
 		};
 	}
 
@@ -1067,7 +1068,8 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// cheaper than calling `view`, diffing and rendering at least.
 				return {
 					__domNode: _VirtualDom_quickVisit(x, y, eventNode),
-					__detail: __3_NO_DETAIL
+					__translated: false,
+					__reinsert: false
 				};
 			}
 			y.__node = y.__thunk();
@@ -1120,14 +1122,16 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				{
 					return {
 						__domNode: domNode,
-						__detail: __3_TRANSLATED
+						__translated: true,
+						__reinsert: false
 					};
 				}
 				domNode.replaceData(0, domNode.length, y.__text);
 			}
 			return {
 				__domNode: domNode,
-				__detail: __3_NO_DETAIL
+				__translated: false,
+				__reinsert: false
 			};
 
 		case __2_NODE:
@@ -1149,7 +1153,8 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 			return {
 				__domNode: domNode,
-				__detail: __3_NO_DETAIL
+				__translated: false,
+				__reinsert: false
 			};
 	}
 }
@@ -1334,7 +1339,8 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 	return {
 		__domNode: domNode,
-		__detail: __3_NO_DETAIL
+		__translated: false,
+		__reinsert: false
 	};
 }
 
@@ -1360,22 +1366,22 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 	{
 		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
 		var domNode = diffReturn.__domNode;
-		switch (diffReturn.__detail)
+
+		if (diffReturn.__translated)
 		{
-			case __3_NO_DETAIL:
-				break;
-			case __3_TRANSLATED:
-				translated = true;
-				break;
-			case __3_MISSING:
-				_VirtualDom_insertAfter(parentDomNode, domNode, previousSibling);
-				break;
+			translated = true;
+		}
+
+		if (diffReturn.__reinsert)
+		{
+			_VirtualDom_insertAfter(parentDomNode, domNode, previousSibling);
+			previousSibling = domNode;
 		}
 		// An extension might have removed an element we have rendered before,
 		// or moved it to another parent. In such cases, `parentDomNode.insertBefore(x, domNode)`
 		// would throw errors. Keep the previous reference element in those cases – that should still
 		// result in the correct element order, just with some element missing.
-		if (domNode.parentNode === parentDomNode)
+		else if (domNode.parentNode === parentDomNode)
 		{
 			previousSibling = domNode;
 		}
@@ -1430,31 +1436,30 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 	{
 		var domNode = diffReturn.__domNode;
 
-		switch (diffReturn.__detail)
+		if (diffReturn.__translated)
 		{
-			case __3_NO_DETAIL:
-				break;
-			case __3_TRANSLATED:
-				translated = true;
-				break;
-			case __3_MISSING:
-				if (upper)
-				{
-					_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
-				}
-				else
-				{
-					_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
-				}
-				break;
+			translated = true;
 		}
 
+		if (diffReturn.__reinsert)
+		{
+			if (upper)
+			{
+				_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
+				domNodeUpper = domNode;
+			}
+			else
+			{
+				_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
+				domNodeLower = domNode;
+			}
+		}
 		// An extension might have removed an element we have rendered before,
 		// or moved it to another parent. In such cases, `parentDomNode.insertBefore(x, domNode)`
 		// and `parentDomNode.moveBefore(x, domNode)` would throw errors. Keep the
 		// previous reference element in those cases – that should still result in the correct
 		// element order, just with some element missing.
-		if (domNode.parentNode === parentDomNode)
+		else if (domNode.parentNode === parentDomNode)
 		{
 			if (upper)
 			{
@@ -1668,6 +1673,7 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 	// The `_VirtualDom_render` call below will push a new DOM node.
 	var domNode = y._.__newDomNodes.pop();
 	var parentNode = domNode.parentNode;
+	var isTextNode = domNode.nodeType === 3;
 	var newNode = _VirtualDom_render(y, eventNode);
 
 	// An extension might have removed the element. In this case, we are redrawing because `x` and `y`
@@ -1676,20 +1682,21 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 	// not the new one, so return that this element is missing so that it can be re-inserted into the
 	// parent. An example of this is Google Translate: It removes our text nodes and replaces them.
 	// Later we might want to replace that text node with some element.
-	// TODO: Won’t the element be left behind then?
 	if (parentNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
 		return {
 			__domNode: newNode,
-			__detail: __3_NO_DETAIL
+			__translated: isTextNode && domNode.data !== x.__text,
+			__reinsert: false
 		}
 	}
 	else
 	{
 		return {
 			__domNode: newNode,
-			__detail: __3_MISSING
+			__translated: isTextNode,
+			__reinsert: true
 		}
 	}
 }
