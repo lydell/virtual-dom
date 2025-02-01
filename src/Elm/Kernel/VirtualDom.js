@@ -42,6 +42,8 @@ void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, _
 // too big until after 50 000 years.
 var _VirtualDom_renderCount = Number.MIN_SAFE_INTEGER;
 
+var _VirtualDom_everTranslated = false;
+
 var _VirtualDom_divertHrefToApp;
 
 var _VirtualDom_doc = typeof document !== 'undefined' ? document : {};
@@ -1126,7 +1128,22 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 						__reinsert: false
 					};
 				}
-				domNode.replaceData(0, domNode.length, y.__text);
+				// Google Translate has a race condition-style bug where if you update the text
+				// of a text node while it is fetching a translation for it, you’ll end up with
+				// that out-of-date translation. So if we’ve ever detected a translation, it’s
+				// no longer safe to update text nodes. Instead, we must replace them with new ones.
+				// That’s slower, so we only switch to this method if needed.
+				if (_VirtualDom_everTranslated)
+				{
+					var newNode = _VirtualDom_doc.createTextNode(y.__text);
+					y._.__newDomNodes[y._.__newDomNodes.length - 1] = newNode;
+					domNode.parentNode.replaceChild(newNode, domNode);
+					domNode = newNode;
+				}
+				else
+				{
+					domNode.replaceData(0, domNode.length, y.__text);
+				}
 			}
 			return {
 				__domNode: domNode,
@@ -1308,6 +1325,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 
 	if (translated)
 	{
+		_VirtualDom_everTranslated = true;
 		for (var i = domNode.childNodes.length - 1; i >= 0; i--)
 		{
 			var child = domNode.childNodes[i];
