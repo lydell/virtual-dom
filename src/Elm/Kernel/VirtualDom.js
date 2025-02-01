@@ -116,13 +116,13 @@ function _VirtualDom_wrap(object)
 	// to not break people who do, why not?
 	return Object.defineProperty(object, '_', {
 		value: {
-			// We only read from `x.__oldDomNodes`. Uses `i`. Is set to `__newDomNodes` at each render.
+			// We only read from `x.__oldDomNodes`. Uses `__i`. Is set to `__newDomNodes` at each render.
 			__oldDomNodes: [],
 			// This is set to a new, empty array on each render. We push to `y.__newDomNodes`. The reason we have to have two arrays is because the same virtual node can be used multiple times, so sometimes `x === y`.
 			__newDomNodes: [],
 			__renderedAt: Number.MIN_SAFE_INTEGER,
 			// The index of the next DOM node in `__oldDomNodes` to use.
-			i: 0
+			__i: 0
 		}
 	});
 }
@@ -623,7 +623,7 @@ function _VirtualDom_storeDomNode(vNode, domNode)
 	{
 		vNode._.__oldDomNodes = vNode._.__newDomNodes;
 		vNode._.__newDomNodes = [];
-		vNode._.i = 0;
+		vNode._.__i = 0;
 		vNode._.__renderedAt = _VirtualDom_renderCount;
 	}
 	vNode._.__newDomNodes.push(domNode);
@@ -1161,7 +1161,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 
 // When we know that a node does not need updating, just quickly visit its children to:
 // - Update event listeners’ reference to the current `eventNode`.
-// - Increase or reset `.i`.
+// - Increase or reset `.__i`.
 function _VirtualDom_quickVisit(x, y, eventNode)
 {
 	switch (y.$)
@@ -1220,14 +1220,14 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 
 	if (x._.__renderedAt === _VirtualDom_renderCount)
 	{
-		domNode = x._.__oldDomNodes[x._.i];
-		x._.i++;
+		domNode = x._.__oldDomNodes[x._.__i];
+		x._.__i++;
 	}
 	else
 	{
 		x._.__oldDomNodes = x._.__newDomNodes;
 		domNode = x._.__oldDomNodes[0];
-		x._.i = 1;
+		x._.__i = 1;
 		x._.__renderedAt = _VirtualDom_renderCount;
 	}
 	if (shouldRemoveFromDom) {
@@ -1265,21 +1265,21 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	}
 }
 
-// Consume DOM node number `i` from `x`:s "old" nodes, push it to `y`:s "new" nodes, and return the DOM node. Reset things if from a different render.
+// Consume DOM node number `__i` from `x`:s "old" nodes, push it to `y`:s "new" nodes, and return the DOM node. Reset things if from a different render.
 function _VirtualDom_consumeDomNode(x, y)
 {
 	if (y._.__renderedAt !== _VirtualDom_renderCount)
 	{
 		y._.__oldDomNodes = y._.__newDomNodes;
 		y._.__newDomNodes = [];
-		y._.i = 0;
+		y._.__i = 0;
 		y._.__renderedAt = _VirtualDom_renderCount;
 	}
 	if (x._.__renderedAt === _VirtualDom_renderCount)
 	{
-		var domNode = x._.__oldDomNodes[x._.i];
+		var domNode = x._.__oldDomNodes[x._.__i];
 		y._.__newDomNodes.push(domNode);
-		x._.i++;
+		x._.__i++;
 		return domNode;
 	}
 	else
@@ -1287,7 +1287,7 @@ function _VirtualDom_consumeDomNode(x, y)
 		x._.__oldDomNodes = x._.__newDomNodes;
 		var domNode = x._.__oldDomNodes[0];
 		y._.__newDomNodes.push(domNode);
-		x._.i = 1;
+		x._.__i = 1;
 		x._.__renderedAt = _VirtualDom_renderCount;
 		return domNode;
 	}
@@ -1666,7 +1666,7 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 	// Remove the old node. Well, just visit it for removal, but don’t remove the actual DOM node.
 	// We want to use `replaceChild` below instead. We have already increased the counter in
 	// `_VirtualDom_diffHelp`, so decrease it back first.
-	x._.i--;
+	x._.__i--;
 	_VirtualDom_removeVisit(x, false);
 
 	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diffHelp`. Pop it off.
