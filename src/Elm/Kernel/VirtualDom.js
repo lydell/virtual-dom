@@ -1099,7 +1099,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		}
 		else
 		{
-			return _VirtualDom_applyPatchRedraw(y, eventNode);
+			return _VirtualDom_applyPatchRedraw(x, y, eventNode);
 		}
 	}
 
@@ -1127,7 +1127,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
 			{
-				return _VirtualDom_applyPatchRedraw(y, eventNode);
+				return _VirtualDom_applyPatchRedraw(x, y, eventNode);
 			}
 
 			_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
@@ -1281,7 +1281,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		var redrawReturn = _VirtualDom_applyPatchRedraw(y, eventNode);
+		var redrawReturn = _VirtualDom_applyPatchRedraw(x, y, eventNode);
 		domNode = redrawReturn[0];
 		translated = redrawReturn[1];
 	}
@@ -1619,13 +1619,19 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 	return diffReturn[0];
 }
 
-function _VirtualDom_applyPatchRedraw(vNode, eventNode)
+function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 {
+	// Remove the old node. Well, just visit it for removal, but don’t remove the actual DOM node.
+	// We want to use `replaceChild` below instead. We have already increased the counter in
+	// `_VirtualDom_diffHelp`, so decrease it back first.
+	x._.i--;
+	_VirtualDom_removeVisit(x, false);
+
 	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diffHelp`. Pop it off.
 	// The `_VirtualDom_render` call below will push a new DOM node.
-	var domNode = vNode._.__newDomNodes.pop();
+	var domNode = y._.__newDomNodes.pop();
 	var parentNode = domNode.parentNode;
-	var newNode = _VirtualDom_render(vNode, eventNode);
+	var newNode = _VirtualDom_render(y, eventNode);
 
 	if (parentNode)
 	{
