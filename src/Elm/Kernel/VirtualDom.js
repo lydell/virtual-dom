@@ -1142,7 +1142,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				}
 				else
 				{
-					domNode.replaceData(0, domNode.length, y.__text);
+					domNode.data = y.__text;
 				}
 			}
 			return {
