@@ -1025,7 +1025,10 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 {
 	if (x === y)
 	{
-		return [_VirtualDom_quickVisit(x, y, eventNode), false];
+		return {
+			__domNode: _VirtualDom_quickVisit(x, y, eventNode),
+			__detail: __3_NO_DETAIL
+		};
 	}
 
 	// Remember: When virtualizing already existing DOM, we can’t know
@@ -1062,7 +1065,10 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// make sure that the event listeners get the current
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
-				return [_VirtualDom_quickVisit(x, y, eventNode), false];
+				return {
+					__domNode: _VirtualDom_quickVisit(x, y, eventNode),
+					__detail: __3_NO_DETAIL
+				};
 			}
 			y.__node = y.__thunk();
 			return _VirtualDom_diffHelp(x.__node, y.__node, eventNode);
@@ -1112,17 +1118,23 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// Text replaced or changed by translation plugins.
 				if (!domNode.parentNode || domNode.data !== x.__text)
 				{
-					return [domNode, true];
+					return {
+						__domNode: domNode,
+						__detail: __3_TRANSLATED
+					};
 				}
 				domNode.replaceData(0, domNode.length, y.__text);
 			}
-			return [domNode, false];
+			return {
+				__domNode: domNode,
+				__detail: __3_NO_DETAIL
+			};
 
 		case __2_NODE:
-			return [_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids), false];
+			return _VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKids);
 
 		case __2_KEYED_NODE:
-			return [_VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids), false];
+			return _VirtualDom_diffNodes(domNode, x, y, eventNode, _VirtualDom_diffKeyedKids);
 
 		case __2_CUSTOM:
 			if (x.__render !== y.__render)
@@ -1135,7 +1147,10 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 			var patch = y.__diff(x.__model, y.__model);
 			patch && patch(domNode);
 
-			return [domNode, false];
+			return {
+				__domNode: domNode,
+				__detail: __3_NO_DETAIL
+			};
 	}
 }
 
@@ -1275,21 +1290,16 @@ function _VirtualDom_consumeDomNode(x, y)
 
 function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 {
-	var translated = false;
-
 	// Bail if obvious indicators have changed. Implies more serious
 	// structural changes such that it's not worth it to diff.
 	if (x.__tag !== y.__tag || x.__namespace !== y.__namespace)
 	{
-		var redrawReturn = _VirtualDom_applyPatchRedraw(x, y, eventNode);
-		domNode = redrawReturn[0];
-		translated = redrawReturn[1];
+		return _VirtualDom_applyPatchRedraw(x, y, eventNode);
 	}
-	else
-	{
-		_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
-		translated = diffKids(domNode, x, y, eventNode);
-	}
+
+	_VirtualDom_applyFacts(domNode, eventNode, x.__facts, y.__facts);
+
+	var translated = diffKids(domNode, x, y, eventNode);
 
 	if (translated)
 	{
@@ -1322,7 +1332,10 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 		}
 	}
 
-	return domNode;
+	return {
+		__domNode: domNode,
+		__detail: __3_NO_DETAIL
+	};
 }
 
 
@@ -1339,15 +1352,32 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode)
 	var yLen = yKids.length;
 
 	var translated = false;
+	var previousSibling = null;
 
 	// PAIRWISE DIFF COMMON KIDS
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
 		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode);
-		if (diffReturn[1])
+		var domNode = diffReturn.__domNode;
+		switch (diffReturn.__detail)
 		{
-			translated = true;
+			case __3_NO_DETAIL:
+				break;
+			case __3_TRANSLATED:
+				translated = true;
+				break;
+			case __3_MISSING:
+				_VirtualDom_insertAfter(parentDomNode, domNode, previousSibling);
+				break;
+		}
+		// An extension might have removed an element we have rendered before,
+		// or moved it to another parent. In such cases, `parentDomNode.insertBefore(x, domNode)`
+		// would throw errors. Keep the previous reference element in those cases – that should still
+		// result in the correct element order, just with some element missing.
+		if (domNode.parentNode === parentDomNode)
+		{
+			previousSibling = domNode;
 		}
 	}
 
@@ -1396,11 +1426,27 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 	var translated = false;
 
-	var handleDiffReturnLower = function (diffReturn)
+	var handleDiffReturn = function (diffReturn, upper)
 	{
-		if (diffReturn[1])
+		var domNode = diffReturn.__domNode;
+
+		switch (diffReturn.__detail)
 		{
-			translated = true;
+			case __3_NO_DETAIL:
+				break;
+			case __3_TRANSLATED:
+				translated = true;
+				break;
+			case __3_MISSING:
+				if (upper)
+				{
+					_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
+				}
+				else
+				{
+					_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
+				}
+				break;
 		}
 
 		// An extension might have removed an element we have rendered before,
@@ -1408,25 +1454,16 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		// and `parentDomNode.moveBefore(x, domNode)` would throw errors. Keep the
 		// previous reference element in those cases – that should still result in the correct
 		// element order, just with some element missing.
-		var domNode = diffReturn[0];
 		if (domNode.parentNode === parentDomNode)
 		{
-			domNodeLower = domNode;
-		}
-	};
-
-	var handleDiffReturnUpper = function (diffReturn)
-	{
-		if (diffReturn[1])
-		{
-			translated = true;
-		}
-
-		// Same as `handleDiffReturnLower`, but for `domNodeUpper` instead of `domNodeLower`.
-		var domNode = diffReturn[0];
-		if (domNode.parentNode === parentDomNode)
-		{
-			domNodeUpper = domNode;
+			if (upper)
+			{
+				domNodeUpper = domNode;
+			}
+			else
+			{
+				domNodeLower = domNode;
+			}
 		}
 	};
 
@@ -1447,7 +1484,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
 				xIndexLower++;
 				yIndexLower++;
-				handleDiffReturnLower(diffReturn);
+				handleDiffReturn(diffReturn, false);
 				continue;
 			}
 
@@ -1494,7 +1531,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
 				xIndexUpper--;
 				yIndexUpper--;
-				handleDiffReturnUpper(diffReturn);
+				handleDiffReturn(diffReturn, true);
 				continue;
 			}
 
@@ -1546,8 +1583,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				var diffReturn = _VirtualDom_diffHelp(xKidLower.b, yKidUpper.b, eventNode);
 				xIndexLower++;
 				yIndexUpper--;
-				_VirtualDom_moveBefore(parentDomNode, diffReturn[0], domNodeUpper);
-				handleDiffReturnUpper(diffReturn);
+				_VirtualDom_moveBefore(parentDomNode, diffReturn.__domNode, domNodeUpper);
+				handleDiffReturn(diffReturn, true);
 				swapped = true;
 			}
 
@@ -1556,8 +1593,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				var diffReturn = _VirtualDom_diffHelp(xKidUpper.b, yKidLower.b, eventNode);
 				yIndexLower++;
 				xIndexUpper--;
-				_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
-				handleDiffReturnLower(diffReturn);
+				_VirtualDom_moveAfter(parentDomNode, diffReturn.__domNode, domNodeLower);
+				handleDiffReturn(diffReturn, false);
 				swapped = true;
 			}
 		}
@@ -1585,8 +1622,8 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 		{
 			var x = xKidsMap[yKey];
 			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode);
-			_VirtualDom_moveAfter(parentDomNode, diffReturn[0], domNodeLower);
-			handleDiffReturnLower(diffReturn);
+			_VirtualDom_moveAfter(parentDomNode, diffReturn.__domNode, domNodeLower);
+			handleDiffReturn(diffReturn, false);
 		}
 		else
 		{
@@ -1616,7 +1653,7 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 {
 	_VirtualDom_renderCount++;
 	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
-	return diffReturn[0];
+	return diffReturn.__domNode;
 }
 
 function _VirtualDom_applyPatchRedraw(x, y, eventNode)
@@ -1633,15 +1670,27 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 	var parentNode = domNode.parentNode;
 	var newNode = _VirtualDom_render(y, eventNode);
 
+	// An extension might have removed the element. In this case, we are redrawing because `x` and `y`
+	// have changed a lot, implying that the structure has changed significantly, and that they can’t
+	// be diffed normally. This means that the extension probably meant to remove the old element, but
+	// not the new one, so return that this element is missing so that it can be re-inserted into the
+	// parent. An example of this is Google Translate: It removes our text nodes and replaces them.
+	// Later we might want to replace that text node with some element.
+	// TODO: Won’t the element be left behind then?
 	if (parentNode)
 	{
 		parentNode.replaceChild(newNode, domNode);
-		return [newNode, false];
+		return {
+			__domNode: newNode,
+			__detail: __3_NO_DETAIL
+		}
 	}
 	else
 	{
-		// The DOM node having no parent indicates that the node has been replaced by translation plugins.
-		return [newNode, true];
+		return {
+			__domNode: newNode,
+			__detail: __3_MISSING
+		}
 	}
 }
 
