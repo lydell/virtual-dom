@@ -1107,6 +1107,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				// that out-of-date translation. So if we’ve ever detected a translation, it’s
 				// no longer safe to update text nodes. Instead, we must replace them with new ones.
 				// That’s slower, so we only switch to this method if needed.
+				// See: https://issues.chromium.org/issues/393698470
 				if (_VirtualDom_everTranslated)
 				{
 					var newNode = _VirtualDom_doc.createTextNode(y.__text);
