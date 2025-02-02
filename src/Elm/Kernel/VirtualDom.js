@@ -1809,10 +1809,12 @@ function _VirtualDom_virtualize(node)
 		return vNode;
 	}
 
-	// Backwards compatibility: Elm has always supported mounting onto any node,
-	// even comment nodes. Text nodes, comment nodes, CDATA sections and processing instructions
-	// all implement the `CharacterData` abstract interface, so representing them
-	// as a text node should be fine.
+	// Backwards compatibility: Elm has always supported mounting onto any
+	// node, even comment nodes. Text nodes, comment nodes, CDATA sections and
+	// processing instructions all implement the `CharacterData` abstract
+	// interface, so representing them as a text node should be fine. The whole
+	// document, doctypes and document fragments are also nodes, but they are
+	// increasingly silly to render into and have never worked with Elm.
 	vNode = _VirtualDom_text('');
 	vNode._.__newDomNodes.push(node);
 	return vNode;
