@@ -1895,6 +1895,11 @@ function _VirtualDom_virtualizeHelp(node)
 		//
 		// It's not the end of the world if we guess wrong, though, it just leads to a bit of
 		// unnecessary DOM mutations on the first render.
+		//
+		// Do we need to use any of the functions in the “XSS ATTACK VECTOR CHECKS”
+		// section while virtualizing? I don’t think so, because they will already 
+		// have executed at this point, and the first render will remove any disallowed
+		// attributes.
 		attrList = __List_Cons(
 			// `Html.Attributes.value` sets the `.value` property to a string, because that’s the
 			// only way to set the value of an input element. The `.value` property has no corresponding
