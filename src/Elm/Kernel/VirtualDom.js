@@ -1803,8 +1803,10 @@ function _VirtualDom_virtualize(node)
 	}
 
 	// Backwards compatibility: Elm has always supported mounting onto any node,
-	// even comment nodes.
-	vNode = node.nodeType === 1 ? A3(_VirtualDom_node, node.localName, __List_Nil, __List_Nil) : _VirtualDom_text('');
+	// even comment nodes. Text nodes, comment nodes, CDATA sections and processing instructions
+	// all implement the `CharacterData` abstract interface, so representing them
+	// as a text node should be fine.
+	vNode = _VirtualDom_text('');
 	vNode._.__newDomNodes.push(node);
 	return vNode;
 }
@@ -1832,18 +1834,6 @@ function _VirtualDom_virtualizeHelp(node)
 	// ELEMENT NODES
 
 	var tag = node.localName;
-
-	// It’s common to put script tags in the body, and it’s not possible
-	// to render a meaningful script tag using Elm, so skip them.
-	// The only other element I can think of that you might add to the body
-	// is a noscript tag.
-	switch (tag)
-	{
-		case 'script':
-		case 'noscript':
-			return undefined;
-	}
-
 	var attrList = __List_Nil;
 	var attrs = node.attributes;
 	for (var i = attrs.length; i--; )
