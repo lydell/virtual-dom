@@ -1684,6 +1684,13 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 {
 	_VirtualDom_renderCount++;
 	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
+	// We can’t do anything about `diffReturn.__translated` or
+	// `diffReturn.__reinsert` here, because we don’t know the parent of the
+	// root node. Note that `rootDomNode.parentNode` cannot be used, because if
+	// the root node is a text node and it has been translated, it is most
+	// likely replaced by other nodes (so the original node is not attached to
+	// the DOM anymore). Returning `Html.text` at the top level of `view` and
+	// expecting it to be translatable is a bit of an edge case anyway.
 	return diffReturn.__domNode;
 }
 
