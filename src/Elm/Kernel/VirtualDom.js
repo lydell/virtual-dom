@@ -1928,6 +1928,10 @@ function _VirtualDom_virtualizeHelp(node)
 	for (var i = kids.length; i--; )
 	{
 		var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
+		// `kidNode` is `undefined` for comment nodes – skip those. This allows
+		// server side rendering to insert comments between two text nodes to
+		// preserve them being parsed as two nodes, not as just one with the
+		// text from both.
 		if (kidNode)
 		{
 			kidList = __List_Cons(kidNode, kidList);
