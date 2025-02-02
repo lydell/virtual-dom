@@ -1912,7 +1912,7 @@ function _VirtualDom_virtualizeHelp(node)
 			// Otherwise, guess that it is an attribute. The user might have used `Html.Attributes.property`,
 			// but there’s no way for us to know that.
 			namespaceURI
-			 	? A3(_VirtualDom_attributeNS, namespaceURI, name, value)
+				? A3(_VirtualDom_attributeNS, namespaceURI, name, value)
 				: A2(_VirtualDom_attribute, name, value),
 			attrList
 		);
