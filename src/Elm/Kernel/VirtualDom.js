@@ -1804,7 +1804,7 @@ function _VirtualDom_virtualize(node)
 
 	// Backwards compatibility: Elm has always supported mounting onto any node,
 	// even comment nodes.
-	vNode = _VirtualDom_text('');
+	vNode = node.nodeType === 1 ? A3(_VirtualDom_node, node.localName, __List_Nil, __List_Nil) : _VirtualDom_text('');
 	vNode._.__newDomNodes.push(node);
 	return vNode;
 }
