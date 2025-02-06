@@ -1928,24 +1928,44 @@ function _VirtualDom_virtualizeHelp(node)
 			? undefined
 			: node.namespaceURI;
 	var kidList = __List_Nil;
-	var kids = node.childNodes;
 
-	for (var i = kids.length; i--; )
+	// To create a text area with default text in HTML:
+	// - correct: <textarea>default text</textarea>
+	// - wrong: <textarea value="default text"></textarea> (value="default text" does nothing.)
+	// In the DOM, that becomes an `HTMLTextAreaElement`, with `.value === "default text"`.
+	// It contains a single text node with the text `"default text"` too.
+	// When the user types into the text area, `.value` changes, but the inner text node stays unchanged.
+	// In Elm, you need to use `Html.textarea [ Html.Attributes.value myValue ] []` to be able to set the value.
+	// All in all, this means that the most useful virtualization is:
+	// - Skip any children (most likely a single text node), because the Elm code most likely set none.
+	// - Pick up `.value`, even though it wasn’t set as an attribute in HTML – but most likely is a property set by the Elm code.
+	// Note that in <textarea>, HTML isn’t parsed as usual – it is more of a plain text element.
+	if (node.localName === 'textarea')
 	{
-		var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
-		// `kidNode` is `undefined` for comment nodes – skip those. This allows
-		// server side rendering to insert comments between two text nodes to
-		// preserve them being parsed as two nodes, not as just one with the
-		// text from both.
-		if (kidNode)
-		{
-			kidList = __List_Cons(kidNode, kidList);
-		}
+		attrList = __List_Cons(
+			A2(_VirtualDom_property, 'value', node.value),
+			attrList
+		);
 	}
-
-	if (_VirtualDom_divertHrefToApp && node.localName === 'a')
+	else
 	{
-		node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
+		for (var kids = node.childNodes, i = kids.length; i--; )
+		{
+			var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
+			// `kidNode` is `undefined` for comment nodes – skip those. This allows
+			// server side rendering to insert comments between two text nodes to
+			// preserve them being parsed as two nodes, not as just one with the
+			// text from both.
+			if (kidNode)
+			{
+				kidList = __List_Cons(kidNode, kidList);
+			}
+		}
+
+		if (_VirtualDom_divertHrefToApp && node.localName === 'a')
+		{
+			node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
+		}
 	}
 
 	var vNode = A4(_VirtualDom_nodeNS, namespace, tag, attrList, kidList);
