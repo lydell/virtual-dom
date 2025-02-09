@@ -485,7 +485,12 @@ var _VirtualDom_mapEventRecord = F2(function(func, record)
 
 function _VirtualDom_organizeFacts(factList)
 {
-	for (var facts = {}; factList.b; factList = factList.b) // WHILE_CONS
+	var facts = {};
+
+	// Mark all elements for virtualization of server rendered nodes – see `_VirtualDom_markerProperty`.
+	facts[_VirtualDom_markerProperty] = "";
+
+	for (; factList.b; factList = factList.b) // WHILE_CONS
 	{
 		var entry = factList.a;
 
@@ -738,8 +743,8 @@ function _VirtualDom_applyProps(domNode, props)
 {
 	for (var key in props)
 	{
-		// See `_VirtualDom_applyFacts` for why we need to filter these.
-		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		// See `_VirtualDom_applyFacts` and `_VirtualDom_markerProperty` for why we need to filter these.
+		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS' || key === _VirtualDom_markerProperty)
 		{
 			continue;
 		}
@@ -765,8 +770,8 @@ function _VirtualDom_removeProps(domNode, prevProps, props)
 {
 	for (var key in prevProps)
 	{
-		// See `_VirtualDom_applyFacts` for why we need to filter these.
-		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS')
+		// See `_VirtualDom_applyFacts` and `_VirtualDom_markerProperty` for why we need to filter these.
+		if (key === 'a__1_EVENT' || key === 'a__1_STYLE' || key === 'a__1_ATTR' || key === 'a__1_ATTR_NS' || key === _VirtualDom_markerProperty)
 		{
 			continue;
 		}
@@ -1792,6 +1797,22 @@ var _VirtualDom_camelCaseBoolProperties = {
 	ismap: 'isMap'
 };
 
+// Used for server side rendering to keep track of which elements to
+// virtualize. This is added to _all_ nodes (except text nodes) in
+// `_VirtualDom_organizeFacts`. Server side rendering renders _all_ string and
+// boolean facts as attributes, including this one. `_VirtualDom_applyProps`
+// and `_VirtualDom_removeProps` _ignore_ this property, in order not to
+// clutter the browser dev tools. `_VirtualDom_virtualize` only virtualizes
+// children with this attribute. This way it knows which elements are “ours”
+// and which were inserted by third-party scripts (before the virtualization
+// took place). The root node is allowed not to have this attribute though, in
+// order not to force everyone to put this attribute on the node they mount the
+// Elm app on. During the first render after virtualization, we remove this
+// attribute from all elements, to unclutter the browser console. That happens
+// via `_VirtualDom_virtualize` virtualizing it as an _attribute_ (not a
+// property) which, when compared to the result of `view`, is diffed for
+// removal.
+var _VirtualDom_markerProperty = 'data-elm';
 
 function _VirtualDom_virtualize(node)
 {
@@ -1897,7 +1918,7 @@ function _VirtualDom_virtualizeHelp(node)
 		// unnecessary DOM mutations on the first render.
 		//
 		// Do we need to use any of the functions in the “XSS ATTACK VECTOR CHECKS”
-		// section while virtualizing? I don’t think so, because they will already 
+		// section while virtualizing? I don’t think so, because they will already
 		// have executed at this point, and the first render will remove any disallowed
 		// attributes.
 		attrList = __List_Cons(
@@ -1951,7 +1972,15 @@ function _VirtualDom_virtualizeHelp(node)
 	{
 		for (var kids = node.childNodes, i = kids.length; i--; )
 		{
-			var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
+			var kid = kids[i];
+
+			// Only virtualize “our” elements – see `_VirtualDom_markerProperty`.
+			if (kid.nodeType === 1 && !kid.hasAttribute(_VirtualDom_markerProperty))
+			{
+				continue;
+			}
+
+			var kidNode = _VirtualDom_virtualizeHelp(kid);
 			// `kidNode` is `undefined` for comment nodes – skip those. This allows
 			// server side rendering to insert comments between two text nodes to
 			// preserve them being parsed as two nodes, not as just one with the
