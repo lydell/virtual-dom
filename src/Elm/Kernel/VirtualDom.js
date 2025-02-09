@@ -1793,7 +1793,7 @@ var _VirtualDom_camelCaseBoolProperties = {
 };
 
 
-function _VirtualDom_virtualize(node, skipVirtualizeChildren)
+function _VirtualDom_virtualize(node)
 {
 	// The debugger has always done `_VirtualDom_virtualize(document)` instead of
 	// `_VirtualDom_virtualize(document.body)` by mistake. To be backwards compatible
@@ -1803,7 +1803,7 @@ function _VirtualDom_virtualize(node, skipVirtualizeChildren)
 		node = _VirtualDom_doc.body;
 	}
 
-	var vNode = _VirtualDom_virtualizeHelp(node, skipVirtualizeChildren);
+	var vNode = _VirtualDom_virtualizeHelp(node);
 	if (vNode)
 	{
 		return vNode;
@@ -1820,7 +1820,7 @@ function _VirtualDom_virtualize(node, skipVirtualizeChildren)
 	return vNode;
 }
 
-function _VirtualDom_virtualizeHelp(node, skipVirtualizeChildren)
+function _VirtualDom_virtualizeHelp(node)
 {
 	// TEXT NODES
 
@@ -1947,11 +1947,11 @@ function _VirtualDom_virtualizeHelp(node, skipVirtualizeChildren)
 			attrList
 		);
 	}
-	else if (!skipVirtualizeChildren)
+	else
 	{
 		for (var kids = node.childNodes, i = kids.length; i--; )
 		{
-			var kidNode = _VirtualDom_virtualizeHelp(kids[i], skipVirtualizeChildren);
+			var kidNode = _VirtualDom_virtualizeHelp(kids[i]);
 			// `kidNode` is `undefined` for comment nodes – skip those. This allows
 			// server side rendering to insert comments between two text nodes to
 			// preserve them being parsed as two nodes, not as just one with the
