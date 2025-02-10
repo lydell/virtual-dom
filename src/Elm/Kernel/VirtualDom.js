@@ -488,7 +488,7 @@ function _VirtualDom_organizeFacts(factList)
 	var facts = {};
 
 	// Mark all elements for virtualization of server rendered nodes – see `_VirtualDom_markerProperty`.
-	facts[_VirtualDom_markerProperty] = "";
+	facts[_VirtualDom_markerProperty] = true;
 
 	for (; factList.b; factList = factList.b) // WHILE_CONS
 	{
