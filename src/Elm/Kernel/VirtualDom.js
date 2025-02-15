@@ -39,8 +39,8 @@ void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, _
 // Increases by 1 before every render. Used to know if the DOM node index
 // on each virtual node needs to be reset.
 // Even if you render 10 000 times per second, this counter won't become
-// too big until after 50 000 years.
-var _VirtualDom_renderCount = Number.MIN_SAFE_INTEGER;
+// too big until after 25 000 years.
+var _VirtualDom_renderCount = 0;
 
 var _VirtualDom_everTranslated = false;
 
@@ -122,7 +122,7 @@ function _VirtualDom_wrap(object)
 			__oldDomNodes: [],
 			// This is set to a new, empty array on each render. We push to `y.__newDomNodes`. The reason we have to have two arrays is because the same virtual node can be used multiple times, so sometimes `x === y`.
 			__newDomNodes: [],
-			__renderedAt: Number.MIN_SAFE_INTEGER,
+			__renderedAt: 0,
 			// The index of the next DOM node in `__oldDomNodes` to use.
 			__i: 0
 		}
