@@ -1223,6 +1223,7 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	else
 	{
 		x._.__oldDomNodes = x._.__newDomNodes;
+		x._.__newDomNodes = [];
 		domNode = x._.__oldDomNodes[0];
 		x._.__i = 1;
 		x._.__renderedAt = _VirtualDom_renderCount;
@@ -1262,7 +1263,13 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	}
 }
 
-// Consume DOM node number `__i` from `x`:s "old" nodes, push it to `y`:s "new" nodes, and return the DOM node. Reset things if from a different render.
+// Consume DOM node number `__i` from `x`:s "old" nodes,
+// push it to `y`:s "new" nodes, and return the DOM node.
+// Reset things if from a different render.
+// Note: Since the exact same virtual DOM node can be used more than once,
+// we can’t think of `x` as the “old” one and `y` as the “new” one.
+// Both `x` and `y` need to have _all_ the `._.` fields reset when
+// the render count changes.
 function _VirtualDom_consumeDomNode(x, y)
 {
 	if (y._.__renderedAt !== _VirtualDom_renderCount)
@@ -1282,6 +1289,7 @@ function _VirtualDom_consumeDomNode(x, y)
 	else
 	{
 		x._.__oldDomNodes = x._.__newDomNodes;
+		x._.__newDomNodes = [];
 		var domNode = x._.__oldDomNodes[0];
 		y._.__newDomNodes.push(domNode);
 		x._.__i = 1;
