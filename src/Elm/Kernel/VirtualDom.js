@@ -111,27 +111,6 @@ var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args
 	return {};
 });
 
-function _VirtualDom_wrap(object)
-{
-	// Add a non-enumerable property to not break Elm's equality checks.
-	// You aren’t supposed to compare virtual nodes, but since it’s possible
-	// to not break people who do, why not?
-	return Object.defineProperty(object, '_', {
-		value: {
-			// We only read from `x.__oldDomNodes`. Uses `__i`. Is set to `__newDomNodes` at each render.
-			__oldDomNodes: [],
-			// This is set to a new, empty array on each render. We push to `y.__newDomNodes`. The reason we have to have two arrays is because the same virtual node can be used multiple times, so sometimes `x === y`.
-			__newDomNodes: [],
-			__renderedAt: 0,
-			// The index of the next DOM node in `__oldDomNodes` to use.
-			__i: 0
-		}
-	});
-}
-
-
-
-
 
 
 // TEXT
@@ -139,10 +118,10 @@ function _VirtualDom_wrap(object)
 
 function _VirtualDom_text(string)
 {
-	return _VirtualDom_wrap({
+	return {
 		$: __2_TEXT,
 		__text: string
-	});
+	};
 }
 
 
@@ -159,7 +138,7 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 			kids.push(kidList.a);
 		}
 
-		return _VirtualDom_wrap({
+		return {
 			$: __2_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
@@ -169,7 +148,7 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L279
 			// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L281
 			__descendantsCount: 0
-		});
+		};
 	});
 });
 
@@ -198,7 +177,7 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			kidsMap[key] = kid.b;
 		}
 
-		return _VirtualDom_wrap({
+		return {
 			$: __2_KEYED_NODE,
 			__tag: tag,
 			__facts: _VirtualDom_organizeFacts(factList),
@@ -213,7 +192,7 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			__kidsMap: kidsMap,
 			__namespace: namespace,
 			__descendantsCount: 0 // See _VirtualDom_nodeNS.
-		});
+		};
 	});
 });
 
@@ -227,13 +206,13 @@ var _VirtualDom_keyedNode = _VirtualDom_keyedNodeNS(undefined);
 
 function _VirtualDom_custom(factList, model, render, diff)
 {
-	return _VirtualDom_wrap({
+	return {
 		$: __2_CUSTOM,
 		__facts: _VirtualDom_organizeFacts(factList),
 		__model: model,
 		__render: render,
 		__diff: diff
-	});
+	};
 }
 
 
@@ -599,23 +578,24 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 	if (tag === __2_TEXT)
 	{
 		var newNode = _VirtualDom_doc.createTextNode(vNode.__text);
-		vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1] = newNode;
+		vNode[_VirtualDom_instance].__newDomNodes[vNode[_VirtualDom_instance].__newDomNodes.length - 1] = newNode;
 		return newNode;
 	}
 
-	return vNode._.__newDomNodes[vNode._.__newDomNodes.length - 1];
+	return vNode[_VirtualDom_instance].__newDomNodes[vNode[_VirtualDom_instance].__newDomNodes.length - 1];
 }
 
 function _VirtualDom_storeDomNode(vNode, domNode)
 {
-	if (vNode._.__renderedAt !== _VirtualDom_renderCount)
+	_VirtualDom_wrap(vNode);
+	if (vNode[_VirtualDom_instance].__renderedAt !== _VirtualDom_renderCount)
 	{
-		vNode._.__oldDomNodes = vNode._.__newDomNodes;
-		vNode._.__newDomNodes = [];
-		vNode._.__i = 0;
-		vNode._.__renderedAt = _VirtualDom_renderCount;
+		vNode[_VirtualDom_instance].__oldDomNodes = vNode[_VirtualDom_instance].__newDomNodes;
+		vNode[_VirtualDom_instance].__newDomNodes = [];
+		vNode[_VirtualDom_instance].__i = 0;
+		vNode[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
 	}
-	vNode._.__newDomNodes.push(domNode);
+	vNode[_VirtualDom_instance].__newDomNodes.push(domNode);
 }
 
 
@@ -1116,7 +1096,7 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 				if (_VirtualDom_everTranslated)
 				{
 					var newNode = _VirtualDom_doc.createTextNode(y.__text);
-					y._.__newDomNodes[y._.__newDomNodes.length - 1] = newNode;
+					y[_VirtualDom_instance].__newDomNodes[y[_VirtualDom_instance].__newDomNodes.length - 1] = newNode;
 					domNode.parentNode.replaceChild(newNode, domNode);
 					domNode = newNode;
 				}
@@ -1215,18 +1195,18 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 
 	var domNode;
 
-	if (x._.__renderedAt === _VirtualDom_renderCount)
+	if (x[_VirtualDom_instance].__renderedAt === _VirtualDom_renderCount)
 	{
-		domNode = x._.__oldDomNodes[x._.__i];
-		x._.__i++;
+		domNode = x[_VirtualDom_instance].__oldDomNodes[x[_VirtualDom_instance].__i];
+		x[_VirtualDom_instance].__i++;
 	}
 	else
 	{
-		x._.__oldDomNodes = x._.__newDomNodes;
-		x._.__newDomNodes = [];
-		domNode = x._.__oldDomNodes[0];
-		x._.__i = 1;
-		x._.__renderedAt = _VirtualDom_renderCount;
+		x[_VirtualDom_instance].__oldDomNodes = x[_VirtualDom_instance].__newDomNodes;
+		x[_VirtualDom_instance].__newDomNodes = [];
+		domNode = x[_VirtualDom_instance].__oldDomNodes[0];
+		x[_VirtualDom_instance].__i = 1;
+		x[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
 	}
 	if (shouldRemoveFromDom) {
 		// An extension might have (re-)moved the element, so we can’t just
@@ -1268,32 +1248,33 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 // Reset things if from a different render.
 // Note: Since the exact same virtual DOM node can be used more than once,
 // we can’t think of `x` as the “old” one and `y` as the “new” one.
-// Both `x` and `y` need to have _all_ the `._.` fields reset when
+// Both `x` and `y` need to have _all_ the `[_VirtualDom_foo].` fields reset when
 // the render count changes.
 function _VirtualDom_consumeDomNode(x, y)
 {
-	if (y._.__renderedAt !== _VirtualDom_renderCount)
+	_VirtualDom_wrap(y);
+	if (y[_VirtualDom_instance].__renderedAt !== _VirtualDom_renderCount)
 	{
-		y._.__oldDomNodes = y._.__newDomNodes;
-		y._.__newDomNodes = [];
-		y._.__i = 0;
-		y._.__renderedAt = _VirtualDom_renderCount;
+		y[_VirtualDom_instance].__oldDomNodes = y[_VirtualDom_instance].__newDomNodes;
+		y[_VirtualDom_instance].__newDomNodes = [];
+		y[_VirtualDom_instance].__i = 0;
+		y[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
 	}
-	if (x._.__renderedAt === _VirtualDom_renderCount)
+	if (x[_VirtualDom_instance].__renderedAt === _VirtualDom_renderCount)
 	{
-		var domNode = x._.__oldDomNodes[x._.__i];
-		y._.__newDomNodes.push(domNode);
-		x._.__i++;
+		var domNode = x[_VirtualDom_instance].__oldDomNodes[x[_VirtualDom_instance].__i];
+		y[_VirtualDom_instance].__newDomNodes.push(domNode);
+		x[_VirtualDom_instance].__i++;
 		return domNode;
 	}
 	else
 	{
-		x._.__oldDomNodes = x._.__newDomNodes;
-		x._.__newDomNodes = [];
-		var domNode = x._.__oldDomNodes[0];
-		y._.__newDomNodes.push(domNode);
-		x._.__i = 1;
-		x._.__renderedAt = _VirtualDom_renderCount;
+		x[_VirtualDom_instance].__oldDomNodes = x[_VirtualDom_instance].__newDomNodes;
+		x[_VirtualDom_instance].__newDomNodes = [];
+		var domNode = x[_VirtualDom_instance].__oldDomNodes[0];
+		y[_VirtualDom_instance].__newDomNodes.push(domNode);
+		x[_VirtualDom_instance].__i = 1;
+		x[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
 		return domNode;
 	}
 }
@@ -1692,10 +1673,45 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 
 var _VirtualDom_POSTFIX = '_elmW6BL';
 
-// See `_VirtualDom_diff`.
-function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
+// The field where we store the DOM nodes for the virtual node (see `_VirtualDom_wrap`).
+// This needs to be different for each app instance, because a constant like
+// `separator = Html.hr [] []` can be used from multiple app instances, all of which
+// need to keep track of their own DOM nodes. Instances are kept track of by assigning
+// an incrementing number to `rootDomNode.elmInstance`. `_VirtualDom_instance` is set
+// to the current instance in ` _VirtualDom_applyPatches` and `_VirtualDom_virtualize`.
+var _VirtualDom_instance = '';
+var _VirtualDom_instanceCount = 1;
+
+function _VirtualDom_wrap(object)
+{
+	if (Object.prototype.hasOwnProperty.call(object, _VirtualDom_instance))
+	{
+		return;
+	}
+
+	// Add a non-enumerable property to not break Elm's equality checks.
+	// You aren’t supposed to compare virtual nodes, but since it’s possible
+	// to not break people who do, why not?
+	Object.defineProperty(object, _VirtualDom_instance, {
+		value: {
+			// We only read from `x.__oldDomNodes`. Uses `__i`. Is set to `__newDomNodes` at each render.
+			__oldDomNodes: [],
+			// This is set to a new, empty array on each render. We push to `y.__newDomNodes`. The reason we have to have two arrays is because the same virtual node can be used multiple times, so sometimes `x === y`.
+			__newDomNodes: [],
+			__renderedAt: 0,
+			// The index of the next DOM node in `__oldDomNodes` to use.
+			__i: 0
+		}
+	});
+}
+
+function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
 	_VirtualDom_renderCount++;
+
+	var instance = rootDomNode.elmInstance || _VirtualDom_instanceCount++;
+	_VirtualDom_instance = '_' + instance;
+
 	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
 	// We can’t do anything about `diffReturn.__translated` or
 	// `diffReturn.__reinsert` here, because we don’t know the parent of the
@@ -1704,7 +1720,12 @@ function _VirtualDom_applyPatches(_rootDomNode, oldVirtualNode, newVirtualNode, 
 	// likely replaced by other nodes (so the original node is not attached to
 	// the DOM anymore). Returning `Html.text` at the top level of `view` and
 	// expecting it to be translatable is a bit of an edge case anyway.
-	return diffReturn.__domNode;
+	var newDomNode = diffReturn.__domNode;
+
+	newDomNode.elmInstance = instance;
+	_VirtualDom_instance = '';
+
+	return newDomNode;
 }
 
 function _VirtualDom_applyPatchRedraw(x, y, eventNode)
@@ -1712,12 +1733,12 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode)
 	// Remove the old node. Well, just visit it for removal, but don’t remove the actual DOM node.
 	// We want to use `replaceChild` below instead. We have already increased the counter in
 	// `_VirtualDom_diffHelp`, so decrease it back first.
-	x._.__i--;
+	x[_VirtualDom_instance].__i--;
 	_VirtualDom_removeVisit(x, false);
 
 	// We have already pushed the DOM node for this virtual node in `_VirtualDom_diffHelp`. Pop it off.
 	// The `_VirtualDom_render` call below will push a new DOM node.
-	var domNode = y._.__newDomNodes.pop();
+	var domNode = y[_VirtualDom_instance].__newDomNodes.pop();
 	var parentNode = domNode.parentNode;
 	var isTextNode = domNode.nodeType === 3;
 	var newNode = _VirtualDom_render(y, eventNode);
@@ -1832,7 +1853,13 @@ function _VirtualDom_virtualize(node)
 		node = _VirtualDom_doc.body;
 	}
 
+	var instance = _VirtualDom_instanceCount++;
+	_VirtualDom_instance = '_' + instance;
+	node.elmInstance = instance;
+
 	var vNode = _VirtualDom_virtualizeHelp(node);
+	_VirtualDom_instance = '';
+
 	if (vNode)
 	{
 		return vNode;
@@ -1856,7 +1883,8 @@ function _VirtualDom_virtualizeHelp(node)
 	if (node.nodeType === 3)
 	{
 		var vNode = _VirtualDom_text(node.textContent);
-		vNode._.__newDomNodes.push(node);
+		_VirtualDom_wrap(vNode);
+		vNode[_VirtualDom_instance].__newDomNodes.push(node);
 		return vNode;
 	}
 
@@ -2006,7 +2034,8 @@ function _VirtualDom_virtualizeHelp(node)
 	}
 
 	var vNode = A4(_VirtualDom_nodeNS, namespace, tag, attrList, kidList);
-	vNode._.__newDomNodes.push(node);
+	_VirtualDom_wrap(vNode);
+	vNode[_VirtualDom_instance].__newDomNodes.push(node);
 	return vNode;
 }
 
@@ -2027,7 +2056,7 @@ function _VirtualDom_dekey(keyedNode)
 		__kids: kids,
 		__namespace: keyedNode.__namespace,
 		__descendantsCount: keyedNode.__descendantsCount
-	}, '_', {
-		value: keyedNode._
+	}, _VirtualDom_instance, {
+		value: keyedNode[_VirtualDom_instance]
 	});
 }
