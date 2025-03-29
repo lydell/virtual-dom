@@ -1675,7 +1675,7 @@ var _VirtualDom_POSTFIX = '_elmW6BL';
 
 // The field where we store the DOM nodes for the virtual node (see `_VirtualDom_wrap`).
 // This needs to be different for each app instance, because a constant like
-// `separator = Html.hr [] []` can be used from multiple app instances, all of which
+// `none = Html.text ""` can be used from multiple app instances, all of which
 // need to keep track of their own DOM nodes. Instances are kept track of by assigning
 // an incrementing number to `rootDomNode.elmInstance`. `_VirtualDom_instance` is set
 // to the current instance in ` _VirtualDom_applyPatches` and `_VirtualDom_virtualize`.
@@ -1690,8 +1690,8 @@ function _VirtualDom_wrap(object)
 	}
 
 	// Add a non-enumerable property to not break Elm's equality checks.
-	// You aren’t supposed to compare virtual nodes, but since it’s possible
-	// to not break people who do, why not?
+	// You aren’t supposed to compare virtual nodes, but I’ve seen code
+	// like `|> List.filter ((/=) Html.Extra.nothing)`.
 	Object.defineProperty(object, _VirtualDom_instance, {
 		value: {
 			// We only read from `x.__oldDomNodes`. Uses `__i`. Is set to `__newDomNodes` at each render.
