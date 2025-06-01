@@ -575,27 +575,30 @@ function _VirtualDom_renderTranslated(vNode, eventNode)
 		return _VirtualDom_renderTranslated(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) });
 	}
 
+	var newDomNodes = vNode[_VirtualDom_instance].__newDomNodes;
+
 	if (tag === __2_TEXT)
 	{
 		var newNode = _VirtualDom_doc.createTextNode(vNode.__text);
-		vNode[_VirtualDom_instance].__newDomNodes[vNode[_VirtualDom_instance].__newDomNodes.length - 1] = newNode;
+		newDomNodes[newDomNodes.length - 1] = newNode;
 		return newNode;
 	}
 
-	return vNode[_VirtualDom_instance].__newDomNodes[vNode[_VirtualDom_instance].__newDomNodes.length - 1];
+	return newDomNodes[newDomNodes.length - 1];
 }
 
 function _VirtualDom_storeDomNode(vNode, domNode)
 {
 	_VirtualDom_wrap(vNode);
-	if (vNode[_VirtualDom_instance].__renderedAt !== _VirtualDom_renderCount)
+	var vNode_ = vNode[_VirtualDom_instance];
+	if (vNode_.__renderedAt !== _VirtualDom_renderCount)
 	{
-		vNode[_VirtualDom_instance].__oldDomNodes = vNode[_VirtualDom_instance].__newDomNodes;
-		vNode[_VirtualDom_instance].__newDomNodes = [];
-		vNode[_VirtualDom_instance].__i = 0;
-		vNode[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
+		vNode_.__oldDomNodes = vNode_.__newDomNodes;
+		vNode_.__newDomNodes = [];
+		vNode_.__i = 0;
+		vNode_.__renderedAt = _VirtualDom_renderCount;
 	}
-	vNode[_VirtualDom_instance].__newDomNodes.push(domNode);
+	vNode_.__newDomNodes.push(domNode);
 }
 
 
@@ -1194,19 +1197,20 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	}
 
 	var domNode;
+	var x_ = x[_VirtualDom_instance];
 
-	if (x[_VirtualDom_instance].__renderedAt === _VirtualDom_renderCount)
+	if (x_.__renderedAt === _VirtualDom_renderCount)
 	{
-		domNode = x[_VirtualDom_instance].__oldDomNodes[x[_VirtualDom_instance].__i];
-		x[_VirtualDom_instance].__i++;
+		domNode = x_.__oldDomNodes[x_.__i];
+		x_.__i++;
 	}
 	else
 	{
-		x[_VirtualDom_instance].__oldDomNodes = x[_VirtualDom_instance].__newDomNodes;
-		x[_VirtualDom_instance].__newDomNodes = [];
-		domNode = x[_VirtualDom_instance].__oldDomNodes[0];
-		x[_VirtualDom_instance].__i = 1;
-		x[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
+		x_.__oldDomNodes = x_.__newDomNodes;
+		x_.__newDomNodes = [];
+		domNode = x_.__oldDomNodes[0];
+		x_.__i = 1;
+		x_.__renderedAt = _VirtualDom_renderCount;
 	}
 	if (shouldRemoveFromDom) {
 		// An extension might have (re-)moved the element, so we can’t just
@@ -1253,28 +1257,30 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 function _VirtualDom_consumeDomNode(x, y)
 {
 	_VirtualDom_wrap(y);
-	if (y[_VirtualDom_instance].__renderedAt !== _VirtualDom_renderCount)
+	var x_ = x[_VirtualDom_instance];
+	var y_ = y[_VirtualDom_instance];
+	if (y_.__renderedAt !== _VirtualDom_renderCount)
 	{
-		y[_VirtualDom_instance].__oldDomNodes = y[_VirtualDom_instance].__newDomNodes;
-		y[_VirtualDom_instance].__newDomNodes = [];
-		y[_VirtualDom_instance].__i = 0;
-		y[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
+		y_.__oldDomNodes = y_.__newDomNodes;
+		y_.__newDomNodes = [];
+		y_.__i = 0;
+		y_.__renderedAt = _VirtualDom_renderCount;
 	}
-	if (x[_VirtualDom_instance].__renderedAt === _VirtualDom_renderCount)
+	if (x_.__renderedAt === _VirtualDom_renderCount)
 	{
-		var domNode = x[_VirtualDom_instance].__oldDomNodes[x[_VirtualDom_instance].__i];
-		y[_VirtualDom_instance].__newDomNodes.push(domNode);
-		x[_VirtualDom_instance].__i++;
+		var domNode = x_.__oldDomNodes[x_.__i];
+		y_.__newDomNodes.push(domNode);
+		x_.__i++;
 		return domNode;
 	}
 	else
 	{
-		x[_VirtualDom_instance].__oldDomNodes = x[_VirtualDom_instance].__newDomNodes;
-		x[_VirtualDom_instance].__newDomNodes = [];
-		var domNode = x[_VirtualDom_instance].__oldDomNodes[0];
-		y[_VirtualDom_instance].__newDomNodes.push(domNode);
-		x[_VirtualDom_instance].__i = 1;
-		x[_VirtualDom_instance].__renderedAt = _VirtualDom_renderCount;
+		x_.__oldDomNodes = x_.__newDomNodes;
+		x_.__newDomNodes = [];
+		var domNode = x_.__oldDomNodes[0];
+		y_.__newDomNodes.push(domNode);
+		x_.__i = 1;
+		x_.__renderedAt = _VirtualDom_renderCount;
 		return domNode;
 	}
 }
