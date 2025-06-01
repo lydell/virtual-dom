@@ -1203,13 +1203,37 @@ function _VirtualDom_removeVisit(x, shouldRemoveFromDom)
 	{
 		domNode = x_.__oldDomNodes[x_.__i];
 		x_.__i++;
+		// When the last DOM node for a constant like `none = Html.text ""` is removed,
+		// clear the old DOM nodes so that we don’t hold on to them in memory (in case
+		// the constant is never used again – the old DOM nodes are only cleared on the
+		// next render normally). Note that if the constant drops from 1000 usages to 1,
+		// the condition below might not be true, and we’ll hold on to the 999 extra DOM
+		// nodes until the next render. Another render is quite likely to happen, though.
+		if (x_.__i >= x_.__oldDomNodes.length)
+		{
+			x_.__oldDomNodes.length = 0;
+			x_.__i = 0;
+		}
 	}
 	else
 	{
-		x_.__oldDomNodes = x_.__newDomNodes;
+		domNode = x_.__newDomNodes[0]; // Read from the to-be `oldDomNodes` (see below).
+		// This is again for constants like `none = Html.text ""`. The `if` statement
+		// about that above would work _after_ the whole `renderedAt` if-else block,
+		// but it’s very common to have just one DOM node per virtual node, so doing
+		// the check in both `if` and `else` lets us optimize a little bit by avoiding
+		// assigning properties twice.
+		if (x_.__newDomNodes.length === 1)
+		{
+			x_.__oldDomNodes = [];
+			x_.__i = 0;
+		}
+		else
+		{
+			x_.__oldDomNodes = x_.__newDomNodes;
+			x_.__i = 1;
+		}
 		x_.__newDomNodes = [];
-		domNode = x_.__oldDomNodes[0];
-		x_.__i = 1;
 		x_.__renderedAt = _VirtualDom_renderCount;
 	}
 	if (shouldRemoveFromDom) {
