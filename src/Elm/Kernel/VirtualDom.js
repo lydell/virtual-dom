@@ -645,9 +645,6 @@ function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 		_VirtualDom_applyStyles(domNode, prevFacts.a__1_STYLE || {}, facts.a__1_STYLE);
 	}
 
-	// See the comment at the `_VirtualDom_removeProps` call earlier in this function.
-	_VirtualDom_applyProps(domNode, facts);
-
 	if (facts.a__1_ATTR !== undefined)
 	{
 		_VirtualDom_applyAttrs(domNode, prevFacts.a__1_ATTR || {}, facts.a__1_ATTR);
@@ -657,6 +654,13 @@ function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 	{
 		_VirtualDom_applyAttrsNS(domNode, prevFacts.a__1_ATTR_NS || {}, facts.a__1_ATTR_NS);
 	}
+
+	// Apply properties _after_ attributes. This means that if you set the same thing both as a property and an attribute,
+	// the property wins. If the attribute had won, the property would “win” during the next render, since properties are
+	// diffed against the actual DOM node, while attributes are diffed against the previous virtual node. So it's better
+	// to let the property win right away.
+	// See the comment at the `_VirtualDom_removeProps` call earlier in this function for why we pass the entire `facts` object.
+	_VirtualDom_applyProps(domNode, facts);
 
 	// Finally, apply events. There is no separate phase for removing events.
 	// Attributes and properties can't interfere with events, so it's fine.
@@ -738,7 +742,7 @@ function _VirtualDom_applyProps(domNode, props)
 		// actual DOM value. Because of that we compare against the actual DOM
 		// node, rather than `prevProps`. Note that many properties are
 		// normalized (to certain values, or to a full URL, for example), so if
-		// you use properties the might be set on every render if you don't
+		// you use properties they might be set on every render if you don't
 		// supply the normalized form. `Html.Attributes` avoids this by
 		// primarily using attributes.
 		if (value !== domNode[key])
@@ -1140,6 +1144,8 @@ function _VirtualDom_diffHelp(x, y, eventNode)
 }
 
 // When we know that a node does not need updating, just quickly visit its children to:
+// - Make sure that properties match the virtual node – they can be mutated by user actions, such as typing into an input.
+//   `Html.Attributes` primarily uses attributes (not properties), so this shouldn’t take much time.
 // - Update event listeners’ reference to the current `eventNode`.
 // - Increase or reset `.__i`.
 function _VirtualDom_quickVisit(x, y, eventNode)
@@ -1161,6 +1167,7 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 			return domNode;
 
 		case __2_NODE:
+			_VirtualDom_applyProps(domNode, y.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
 			{
@@ -1169,6 +1176,7 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 			return domNode;
 
 		case __2_KEYED_NODE:
+			_VirtualDom_applyProps(domNode, y.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
 			{
@@ -1177,6 +1185,7 @@ function _VirtualDom_quickVisit(x, y, eventNode)
 			return domNode;
 
 		case __2_CUSTOM:
+			_VirtualDom_applyProps(domNode, y.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			return domNode;
 	}
