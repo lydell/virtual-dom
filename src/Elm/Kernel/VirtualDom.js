@@ -1893,11 +1893,19 @@ function _VirtualDom_virtualize(node)
 	}
 
 	var instance = _VirtualDom_instanceCount++;
+	var previousInstance = _VirtualDom_instance;
 	_VirtualDom_instance = '_' + instance;
 	node.elmInstance = instance;
 
 	var vNode = _VirtualDom_virtualizeHelp(node);
-	_VirtualDom_instance = '';
+
+	// `_VirtualDom_virtualize` can be called during init of an Elm app inside
+	// `connectedCallback` of a custom element. The first render of that inner
+	// Elm app is queued until the parent Elm app is finished with its render,
+	// thanks to code in elm/browser. But virtualization happens right away.
+	// So it’s important to set back `_VirtualDom_instance` to the value that
+	// the parent Elm app is expecting, rather than to the empty string.
+	_VirtualDom_instance = previousInstance;
 
 	if (vNode)
 	{
