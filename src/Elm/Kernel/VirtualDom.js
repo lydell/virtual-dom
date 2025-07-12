@@ -462,6 +462,24 @@ var _VirtualDom_mapEventRecord = F2(function(func, record)
 // ORGANIZE FACTS
 
 
+// This boolean is used to turn the `class` attribute into the `className` property only when needed for
+// backwards compatibility with elm-exploration/test (which only looks for `className` since `Html.Attributes.class` used to be implemented that way):
+// https://github.com/elm-explorations/test/blob/eef7f1aad0cc8c8b1434c678c757a1429fbcb9c7/src/Test/Html/Internal/ElmHtml/Query.elm#L265
+// Why not just keep `Html.Attributes.class` implemented as `className` then? Well, `Html.Attributes.class`
+// is better implemented as a `class` attribute rather than the `className` property because:
+// - In SVG, `className` is read only and throws an error if assigned. Setting the `class` attribute works.
+// - It’s easier to virtualize `class` since no special case mapping from `class` to `className` is needed.
+// - Properties are diffed against the actual DOM node. If a third-party script or browser extension add an
+//   extra class on an element, that would be removed the next time Elm renders, even if nothing changed
+//   about that element. Attributes are diffed against the previous virtual DOM, making it more likely that
+//   extra added classes survive for some time.
+// - Properties are applied every render, even for lazy nodes, to make sure that for example `value` is up-to-date
+//   (it might have been altered by the web page user by typing in some field). `Html.Attributes.class` is likely
+//   one of the most used `Html.Attributes` functions in view code, and does not need to be applied every render.
+//   So not doing that is a small performance win.
+var _VirtualDom_elmExplorationsTestBackwardsCompatibility = typeof _Test_runThunk === 'function';
+
+
 function _VirtualDom_organizeFacts(factList)
 {
 	var facts = {};
@@ -488,7 +506,9 @@ function _VirtualDom_organizeFacts(factList)
 
 		var subFacts = facts[tag] || (facts[tag] = {});
 		(tag === 'a__1_ATTR' && key === 'class')
-			? _VirtualDom_addClass(subFacts, key, value)
+			? _VirtualDom_elmExplorationsTestBackwardsCompatibility
+				? _VirtualDom_addClass(facts, 'className', value)
+				: _VirtualDom_addClass(subFacts, key, value)
 			: subFacts[key] = value;
 	}
 
