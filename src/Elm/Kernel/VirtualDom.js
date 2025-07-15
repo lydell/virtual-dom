@@ -1912,6 +1912,13 @@ function _VirtualDom_virtualize(node)
 		node = _VirtualDom_doc.body;
 	}
 
+	if (node.elmInstance !== undefined)
+	{
+		// The `console.error` lets the user more easily identify which node they passed.
+		console.error('node.elmInstance already exists:', node.elmInstance, node);
+		throw new Error('node.elmInstance already exists: ' + node.elmInstance);
+	}
+
 	var instance = _VirtualDom_instanceCount++;
 	var previousInstance = _VirtualDom_instance;
 	_VirtualDom_instance = '_' + instance;
