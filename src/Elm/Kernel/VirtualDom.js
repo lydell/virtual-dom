@@ -36,12 +36,6 @@ void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, _
 // HELPERS
 
 
-// Increases by 1 before every render. Used to know if the DOM node index
-// on each virtual node needs to be reset.
-// Even if you render 10 000 times per second, this counter won't become
-// too big until after 25 000 years.
-var _VirtualDom_renderCount = 0;
-
 var _VirtualDom_everTranslated = false;
 
 var _VirtualDom_divertHrefToApp;
@@ -1741,6 +1735,16 @@ var _VirtualDom_POSTFIX = '_elmW6BL';
 var _VirtualDom_instance = '';
 var _VirtualDom_instanceCount = 1;
 
+// Increases by 1 before every render. Used to know if the DOM node index
+// on each virtual node needs to be reset.
+// Even if you render 10 000 times per second, this counter won't become
+// too big until after 25 000 years.
+// `_VirtualDom_renderCount` is set to the count for the current app instance
+// in ` _VirtualDom_applyPatches`, and is stored at `rootDomNode.elmRenderCount`.
+// ``;
+var _VirtualDom_renderCount = 0;
+
+
 function _VirtualDom_wrap(object)
 {
 	if (Object.prototype.hasOwnProperty.call(object, _VirtualDom_instance))
@@ -1766,10 +1770,11 @@ function _VirtualDom_wrap(object)
 
 function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, eventNode)
 {
-	_VirtualDom_renderCount++;
-
-	var instance = rootDomNode.elmInstance || _VirtualDom_instanceCount++;
+	var instance = rootDomNode.elmInstance;
+	var previousInstance = _VirtualDom_instance;
+	var previousRenderCount = _VirtualDom_renderCount;
 	_VirtualDom_instance = '_' + instance;
+	_VirtualDom_renderCount = ++rootDomNode.elmRenderCount;
 
 	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode);
 	// We can’t do anything about `diffReturn.__translated` or
@@ -1782,7 +1787,14 @@ function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, e
 	var newDomNode = diffReturn.__domNode;
 
 	newDomNode.elmInstance = instance;
-	_VirtualDom_instance = '';
+	newDomNode.elmRenderCount = _VirtualDom_renderCount;
+
+	// `_VirtualDom_applyPatches` can be called during init of an Elm app
+	// inside `connectedCallback` of a custom element. So it’s important to set
+	// back `_VirtualDom_instance` and `_VirtualDom_renderCount` to the values
+	// that the parent Elm app is expecting.
+	_VirtualDom_instance = previousInstance;
+	_VirtualDom_renderCount = previousRenderCount;
 
 	return newDomNode;
 }
@@ -1920,18 +1932,14 @@ function _VirtualDom_virtualize(node)
 	}
 
 	var instance = _VirtualDom_instanceCount++;
+
 	var previousInstance = _VirtualDom_instance;
 	_VirtualDom_instance = '_' + instance;
 	node.elmInstance = instance;
+	node.elmRenderCount = 0;
 
 	var vNode = _VirtualDom_virtualizeHelp(node);
 
-	// `_VirtualDom_virtualize` can be called during init of an Elm app inside
-	// `connectedCallback` of a custom element. The first render of that inner
-	// Elm app is queued until the parent Elm app is finished with its render,
-	// thanks to code in elm/browser. But virtualization happens right away.
-	// So it’s important to set back `_VirtualDom_instance` to the value that
-	// the parent Elm app is expecting, rather than to the empty string.
 	_VirtualDom_instance = previousInstance;
 
 	if (vNode)
