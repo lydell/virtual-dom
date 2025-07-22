@@ -166,6 +166,7 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			while (key in kidsMap)
 			{
 				key += _VirtualDom_POSTFIX;
+				kid = __Utils_Tuple2(key, kid.b);
 			}
 			kids.push(kid);
 			kidsMap[key] = kid.b;
