@@ -1666,7 +1666,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode)
 				swapped = true;
 			}
 
-			if (xKeyUpper == yKeyLower)
+			if (xKeyUpper === yKeyLower)
 			{
 				var diffReturn = _VirtualDom_diffHelp(xKidUpper.b, yKidLower.b, eventNode);
 				yIndexLower++;
