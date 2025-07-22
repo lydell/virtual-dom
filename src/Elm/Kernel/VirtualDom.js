@@ -1403,7 +1403,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, diffKids)
 		for (; j >= 0; j--)
 		{
 			current = domNode.childNodes[j];
-			if (child.nodeType === 3 || current.localName === 'font')
+			if (current.nodeType === 3 || current.localName === 'font')
 			{
 				domNode.removeChild(current);
 			}
