@@ -591,22 +591,26 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 
 	_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
 
-	for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
+	if (tag === __2_NODE)
 	{
-		var kid = kids[i];
-		var childTNode = _VirtualDom_createTNode(undefined);
-		var childDomNode;
-		if (tag === __2_NODE)
+		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 		{
-			childDomNode = _VirtualDom_render(kid, eventNode, childTNode);
+			var childTNode = _VirtualDom_createTNode(undefined);
+			var childDomNode = _VirtualDom_render(kids[i], eventNode, childTNode);
 			tNode.__children[i] = childTNode;
+			_VirtualDom_appendChild(domNode, childDomNode);
 		}
-		else
+	}
+	else
+	{
+		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 		{
-			childDomNode = _VirtualDom_render(kid.b, eventNode, childTNode);
+			var kid = kids[i];
+			var childTNode = _VirtualDom_createTNode(undefined);
+			var childDomNode = _VirtualDom_render(kid.b, eventNode, childTNode);
 			tNode.__children[kid.a] = childTNode;
+			_VirtualDom_appendChild(domNode, childDomNode);
 		}
-		_VirtualDom_appendChild(domNode, childDomNode);
 	}
 
 	tNode.__domNode = domNode;
