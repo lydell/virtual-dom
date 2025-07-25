@@ -699,11 +699,14 @@ function _VirtualDom_applyFacts(domNode, eventNode, prevFacts, facts)
 		_VirtualDom_applyAttrsNS(domNode, prevFacts.a__1_ATTR_NS || {}, facts.a__1_ATTR_NS);
 	}
 
-	// Apply properties _after_ attributes. This means that if you set the same thing both as a property and an attribute,
-	// the property wins. If the attribute had won, the property would “win” during the next render, since properties are
-	// diffed against the actual DOM node, while attributes are diffed against the previous virtual node. So it's better
+	// Apply properties _after_ attributes. This means that if you set the same
+	// thing both as a property and an attribute, the property wins. If the
+	// attribute had won, the property would “win” during the next render,
+	// since properties are diffed against the actual DOM node, while
+	// attributes are diffed against the previous virtual node. So it's better
 	// to let the property win right away.
-	// See the comment at the `_VirtualDom_removeProps` call earlier in this function for why we pass the entire `facts` object.
+	// See the comment at the `_VirtualDom_removeProps` call earlier in this
+	// function for why we pass the entire `facts` object.
 	_VirtualDom_applyProps(domNode, facts);
 
 	// Finally, apply events. There is no separate phase for removing events.
@@ -1746,10 +1749,15 @@ Unclear:
 adAuctionHeaders
 browsingTopics
 
-Regarding the special ones: `<input checked>` results in `.defaultChecked === true`. Similarly, setting `input.defaultChecked = true` results in `input.outerHTML === '<input checked="">'`. `input.checked = true` does _not_ result in an attribute though: `.checked` has no corresponding attribute. However, when serializing
-`Html.input [ Html.Attributes.checked True ] []` to HTML, `<input checked>` is the most reasonable choice.
-So when virtualizing, we actually want to turn the `checked` attribute back into a boolean "checked" property in Elm
-(even if according to the DOM, it's `.defaultChecked`). Same thing for `muted` and `selected`.
+Regarding the special ones: `<input checked>` results in `.defaultChecked ===
+true`. Similarly, setting `input.defaultChecked = true` results in
+`input.outerHTML === '<input checked="">'`. `input.checked = true` does _not_
+result in an attribute though: `.checked` has no corresponding attribute.
+However, when serializing `Html.input [ Html.Attributes.checked True ] []` to
+HTML, `<input checked>` is the most reasonable choice. So when virtualizing, we
+actually want to turn the `checked` attribute back into a boolean "checked"
+property in Elm (even if according to the DOM, it's `.defaultChecked`). Same
+thing for `muted` and `selected`.
 */
 var _VirtualDom_camelCaseBoolProperties = {
 	novalidate: 'noValidate',
@@ -1964,7 +1972,7 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 	}
 
 	// This returns the same structure as `_VirtualDom_nodeNS`, but avoids
-	// calling that functions, because then we can avoid constructing an
+	// calling that function, because then we can avoid constructing an
 	// Elm list, reversing it, and then having `_VirtualDom_nodeNS` convert
 	// that to a JS array.
 	return {
