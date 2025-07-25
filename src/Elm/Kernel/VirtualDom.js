@@ -1991,10 +1991,10 @@ function _VirtualDom_upkey(node, keyedNode, tNode) {
 	var newKeyedKids = new Array(len);
 	var newKidsMap = Object.create(null);
 	var newChildren = Object.create(null);
-    for (var i = 0; i < len; i++)
-    {
-    	var kid = kids[i];
-    	var key;
+	for (var i = 0; i < len; i++)
+	{
+		var kid = kids[i];
+		var key;
 		if (i < keyedLen)
 		{
 			key = keyedKids[i].a;
@@ -2010,19 +2010,19 @@ function _VirtualDom_upkey(node, keyedNode, tNode) {
 		}
 		newKeyedKids[i] = __Utils_Tuple2(key, kid);
 		newKidsMap[key] = kid;
-    	newChildren[key] = tNode.__children[i];
-    }
-    tNode.__children = newChildren;
+		newChildren[key] = tNode.__children[i];
+	}
+	tNode.__children = newChildren;
 
-    return {
-    	$: __2_KEYED_NODE,
-    	__tag: node.__tag,
-    	__facts: node.__facts,
-    	__kids: newKeyedKids,
-    	__kidsMap: newKidsMap,
-    	__namespace: node.__namespace,
-    	__descendantsCount: node.__descendantsCount
-    };
+	return {
+		$: __2_KEYED_NODE,
+		__tag: node.__tag,
+		__facts: node.__facts,
+		__kids: newKeyedKids,
+		__kidsMap: newKidsMap,
+		__namespace: node.__namespace,
+		__descendantsCount: node.__descendantsCount
+	};
 }
 
 function _VirtualDom_dekey(keyedNode, tNode)
