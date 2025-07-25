@@ -32,16 +32,6 @@ import VirtualDom exposing (toHandlerInt)
 // grep --fixed-strings --line-regexp --file=b.txt a.txt
 void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, __tag: null, __facts: null, __kids: null, __namespace: null, __2_KEYED_NODE: null, __2_CUSTOM: null, __model: null, __render: null, __diff: null, __2_TAGGER: null, __tagger: null, __node: null, __2_THUNK: null, __refs: null, __thunk: null, __1_EVENT: null, __key: null, __value: null, __1_STYLE: null, __1_PROP: null, __1_ATTR: null, __1_ATTR_NS: null, __handler: null, __eventNode: null };
 
-// The existence of this function provides backwards compatibility with earlier
-// versions the elm-safe-virtual-dom project. It instructs people to look for
-// `_VirtualDom_wrap` as a way of knowing if the new code was installed. And
-// some tools check `typeof _VirtualDom_wrap === 'function'` to be compatible
-// with both older and newer code. `_VirtualDom_wrap` was chosen for this since
-// it was believed to never change, since it was so fundamental to the “safe”
-// virtual DOM approach. Nevertheless, here we are, ending up not needing it
-// in the end.
-function _VirtualDom_wrap() {}
-
 
 
 // HELPERS
