@@ -114,23 +114,46 @@ function _VirtualDom_createTNode(domNode)
 	};
 }
 
-var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
+var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 {
 	// NOTE: this function needs __Platform_export available to work
 
-	/**__PROD/
-	var node = args['node'];
-	//*/
+	var init = function(args)
+	{
+		/**__PROD/
+		var node = args['node'];
+		//*/
+		/**__DEBUG/
+		var node = args && args['node'] ? args['node'] : __Debug_crash(0);
+		//*/
+
+		var sendToApp = function() {};
+		var tNode = _VirtualDom_createTNode(undefined);
+		var nextNode = _VirtualDom_render(virtualNode, sendToApp, tNode);
+		nextNode.elmTree = tNode;
+		node.parentNode.replaceChild(nextNode, node);
+		node = nextNode;
+
+		var app = {};
+
+		/**__DEBUG/
+		app.hotReload = function(hotReloadData)
+		{
+			node = _VirtualDom_applyPatches(node, virtualNode, hotReloadData.__$virtualNode, sendToApp);
+			virtualNode = hotReloadData.__$virtualNode;
+		};
+		//*/
+
+		return app;
+	};
+
 	/**__DEBUG/
-	var node = args && args['node'] ? args['node'] : __Debug_crash(0);
+	init.hotReloadData = {
+		__$virtualNode: virtualNode
+	};
 	//*/
 
-	node.parentNode.replaceChild(
-		_VirtualDom_render(virtualNode, function() {}, _VirtualDom_createTNode(undefined)),
-		node
-	);
-
-	return {};
+	return init;
 });
 
 
