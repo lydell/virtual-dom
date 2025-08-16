@@ -2050,3 +2050,237 @@ function _VirtualDom_dekey(keyedNode, tNode)
 		__descendantsCount: keyedNode.__descendantsCount
 	};
 }
+
+
+
+// TO STRING
+
+
+// Used for attribute values and text.
+// - `&` always starts an entity.
+// - We always surround attribute values with double quotes, so `"` needs escaping.
+// - For text, a `<` could introduce a new element, so it needs escaping.
+var _VirtualDom_encodedEntities = /["&<]/g;
+
+
+// https://html.spec.whatwg.org/multipage/syntax.html#cdata-rcdata-restrictions:raw-text-elements
+var _VirtualDom_styleClose = /<\/(style[\t\n\f\r >/])/gi;
+
+
+// Standard elements:
+// https://html.spec.whatwg.org/multipage/syntax.html#syntax-tag-name
+// Custom elements:
+// https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name
+// https://dom.spec.whatwg.org/#valid-element-local-name
+var _VirtualDom_validTagName = /^[a-z][^\s\0/>]+$/i;
+
+
+// https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
+// Note: This excludes matching https://infra.spec.whatwg.org/#noncharacter
+// since they can’t cause any parsing issues if still included.
+// Try it with this oneliner in the browser console:
+// bad = []; for (i = 0; i <= 0xFFFF; i++) {a = String.fromCharCode(i); d = document.createElement("div"); d.innerHTML = `<p ${a}=1>`; if (d.children[0].getAttribute(a) === null) bad.push(a)}; bad
+var _VirtualDom_validAttributeName = /^[^\x00-\x20"'>/=]+$/i;
+
+
+// https://html.spec.whatwg.org/multipage/syntax.html#elements-2
+var _VirtualDom_voidElements = /^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wb)$/i;
+var _VirtualDom_preElement = /^pre$/i;
+var _VirtualDom_styleElement = /^style$/i;
+var _VirtualDom_textareaElement = /^textarea$/i;
+var _VirtualDom_titleElement = /^title$/i;
+
+
+function _VirtualDom_propertyToAttributeName(prop)
+{
+	switch (prop)
+	{
+		// This is all properties with a different attribute name (except casing),
+		// excluding namespaced attributes and ARIA attributes.
+		case 'acceptCharset': return 'accept-charset';
+		case 'className': return 'class';
+		case 'htmlFor': return 'for';
+		case 'httpEquiv': return 'http-equiv';
+		default: return prop;
+	}
+}
+
+
+function _VirtualDom_escape(str)
+{
+	return str.replace(_VirtualDom_encodedEntities, _VirtualDom_encodeEntity);
+}
+
+
+function _VirtualDom_encodeEntity(char)
+{
+	switch (char)
+	{
+		case '"': return '&quot;';
+		case '&': return '&amp;';
+		default:  return '&lt;';
+	}
+}
+
+
+// https://html.spec.whatwg.org/multipage/syntax.html#cdata-rcdata-restrictions:raw-text-elements
+function _VirtualDom_escapeStyle(str)
+{
+	return str.replace(_VirtualDom_styleClose, '<\\/$1');
+}
+
+
+// https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
+function _VirtualDom_escapeLeadingNewline(str)
+{
+	return str[0] === '\n' || str[0] === '\r' ? '\n' + str : str;
+}
+
+
+function _VirtualDom_contentMode(tag)
+{
+	// Note: script elements cannot be constructed thanks to `_VirtualDom_noScript`.
+	// textarea elements are handled in their own special case.
+	return _VirtualDom_preElement.test(tag)
+		? __3_PRE
+		: _VirtualDom_styleElement.test(tag)
+		? __3_STYLE
+		: _VirtualDom_titleElement.test(tag)
+		? __3_TITLE
+		: __3_NORMAL;
+}
+
+
+function _VirtualDom_toString(vNode)
+{
+	return _VirtualDom_toStringHelp(vNode, __3_NORMAL);
+}
+
+
+function* _VirtualDom_toStringHelp(vNode, contentMode)
+{
+	var vNodeTag = vNode.$;
+
+	switch (vNodeTag)
+	{
+		case __2_THUNK:
+			yield* _VirtualDom_toStringHelp(vNode.__node || (vNode.__node = vNode.__thunk()), contentMode);
+			break;
+
+		case __2_TAGGER:
+			yield* _VirtualDom_toStringHelp(vNode.__node, contentMode);
+			break;
+
+		case __2_TEXT:
+			yield contentMode === __3_PRE
+				? _VirtualDom_escape(_VirtualDom_escapeLeadingNewline(vNode.__text))
+				: contentMode === __3_STYLE
+				? _VirtualDom_escapeStyle(vNode.__text)
+				: _VirtualDom_escape(vNode.__text);
+			break;
+
+		case __2_CUSTOM:
+			// Not supported.
+			break;
+
+		// at this point `tag` must be __2_NODE or __2_KEYED_NODE
+		default:
+			var namespace = vNode.__namespace;
+			var tag = vNode.__tag;
+			var facts = vNode.__facts;
+			var kids = vNode.__kids;
+
+			if (contentMode !== __3_NORMAL || !_VirtualDom_validTagName.test(tag))
+			{
+				break;
+			}
+
+			if (!namespace && _VirtualDom_textareaElement.test(tag))
+			{
+				var value = _VirtualDom_escapeLeadingNewline(facts.value || '');
+				yield '<textarea';
+				yield* _VirtualDom_factsToString(facts, 'value');
+				yield '>' + _VirtualDom_escape(value) + '</textarea>';
+				break;
+			}
+
+			yield '<' + tag;
+			yield* _VirtualDom_factsToString(facts, undefined);
+			yield '>';
+
+			if (namespace || !_VirtualDom_voidElements.test(tag))
+			{
+				contentMode = _VirtualDom_contentMode(tag);
+				for (var i = 0; i < kids.length; i++)
+				{
+					var kid = kids[i];
+					yield* _VirtualDom_toStringHelp(vNodeTag === __2_NODE ? kid : kid.b, contentMode);
+					if (contentMode === __3_PRE)
+					{
+						contentMode === __3_NORMAL;
+					}
+				}
+				yield '</' + tag + '>';
+			}
+			break;
+	}
+}
+
+
+function* _VirtualDom_factsToString(facts, keyToIgnore)
+{
+	for (var key in facts)
+	{
+		var value = facts[key];
+
+		switch (key)
+		{
+			case keyToIgnore:
+			case 'a__1_EVENT':
+				break;
+
+			case 'a__1_STYLE':
+				yield ' style="';
+				for (var key in value)
+				{
+					yield _VirtualDom_escape(key) + ':' + _VirtualDom_escape(value[key]) + ';';
+				}
+				yield '"';
+				break;
+
+			case 'a__1_ATTR':
+			case 'a__1_ATTR_NS':
+				for (var key in value)
+				{
+					if (_VirtualDom_validAttributeName.test(key))
+					{
+						yield ' ' + key + '="' + _VirtualDom_escape(value[key]) + '"';
+					}
+				}
+				break;
+
+			default:
+				if (!_VirtualDom_validAttributeName.test(key))
+				{
+					continue;
+				}
+
+				switch (typeof value)
+				{
+					case 'boolean':
+						if (value)
+						{
+							yield ' ' + key;
+						}
+						break;
+
+					case 'string':
+						yield ' ' + _VirtualDom_propertyToAttributeName(key) + '="' + _VirtualDom_escape(value) + '"';
+						break;
+
+					// For other types it's unclear what to do.
+				}
+				break;
+		}
+	}
+}
