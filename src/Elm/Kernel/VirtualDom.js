@@ -1,12 +1,14 @@
 /*
 
 import Basics exposing (identity)
+import Dict exposing (empty, insert)
 import Elm.Kernel.Debug exposing (crash)
 import Elm.Kernel.Json exposing (runHelp, unwrap, wrap)
 import Elm.Kernel.List exposing (Cons, Nil)
 import Elm.Kernel.Utils exposing (Tuple2)
 import Elm.Kernel.Platform exposing (export)
 import Json.Decode as Json exposing (map, map2, succeed)
+import Maybe exposing (Just, Nothing)
 import Result exposing (isOk)
 import VirtualDom exposing (toHandlerInt)
 
@@ -2292,3 +2294,161 @@ function _VirtualDom_factsToString(facts, keyToIgnore, cb)
 
 	return true;
 }
+
+
+
+// TO TEST
+
+
+function _VirtualDom_toTest(vNode, textCtor, nodeCtor, customCtor, markdownCtor)
+{
+	return _VirtualDom_toTestHelp(vNode, textCtor, nodeCtor, customCtor, markdownCtor, []);
+}
+
+
+function _VirtualDom_toTestHelp(vNode, textCtor, nodeCtor, customCtor, markdownCtor, taggers)
+{
+	var vNodeTag = vNode.$;
+
+	switch (vNodeTag)
+	{
+		case __2_THUNK:
+			return _VirtualDom_toTestHelp(vNode.__node || (vNode.__node = vNode.__thunk()), textCtor, nodeCtor, customCtor, markdownCtor, taggers);
+
+		case __2_TAGGER:
+			return _VirtualDom_toTestHelp(vNode.__node, textCtor, nodeCtor, customCtor, markdownCtor, taggers.concat(vNode.__tagger));
+
+		case __2_TEXT:
+			return textCtor(vNode.__text);
+
+		case __2_CUSTOM:
+			for (var key in vNode.__model)
+			{
+				// elm-explorations/test has support for testing that markdown contains specific text.
+				// Only elm-explorations/webgl and elm-explorations/markdown use __2_CUSTOM, and only
+				// markdown has a string field in the model.
+				var value = vNode.__model[key];
+				if (typeof value === 'string')
+				{
+					return markdownCtor({
+						__$markdown: value,
+						__$facts: _VirtualDom_factsToTest(vNode.__facts, taggers)
+					});
+				}
+			}
+			return customCtor(_VirtualDom_factsToTest(vNode.__facts, taggers));
+
+		// at this point `tag` must be __2_NODE or __2_KEYED_NODE
+		default:
+			var children = __List_Nil;
+			for (var i = kids.length - 1; i >= 0; i--)
+			{
+				var kid = kids[i];
+				var child = _VirtualDom_toTestHelp(vNodeTag === __2_NODE ? kid : kid.b, textCtor, nodeCtor, customCtor, markdownCtor, taggers);
+				children = __List_Cons(child, children);
+			}
+
+			return nodeCtor({
+				__$namespace: vNode.__namespace ? __Maybe_Just(vNode.__namespace) : __Maybe_Nothing,
+				__$tag: vNode.__tag,
+				__$facts: _VirtualDom_factsToTest(vNode.__facts, taggers),
+				__$children: children
+			});
+	}
+}
+
+
+function _VirtualDom_factsToTest(facts, taggers)
+{
+	var testFacts = {
+		__$events: __Dict_empty,
+		__$attributes: __Dict_empty,
+		__$attributesNS: __Dict_empty,
+		__$properties: __Dict_empty,
+		__$styles: __Dict_empty
+	};
+
+	for (var key in facts)
+	{
+		var value = facts[key];
+
+		switch (key)
+		{
+			case 'a__1_EVENT':
+				for (var key in value)
+				{
+					testFacts.__$events = A3(
+						__Dict_insert,
+						key,
+						_VirtualDom_mapHandler(_VirtualDom_applyTaggers(taggers), value[key]),
+						testFacts.__$events
+					);
+				}
+				break;
+
+			case 'a__1_STYLE':
+				for (var key in value)
+				{
+					testFacts.__$styles = A3(
+						__Dict_insert,
+						key,
+						value[key],
+						testFacts.__$styles
+					);
+				}
+				break;
+
+			case 'a__1_ATTR':
+				for (var key in value)
+				{
+					testFacts.__$attributes = A3(
+						__Dict_insert,
+						key,
+						value[key],
+						testFacts.__$attributes
+					);
+				}
+				break;
+
+			case 'a__1_ATTR_NS':
+				for (var key in value)
+				{
+					var val = value[key];
+					testFacts.__$attributesNS = A3(
+						__Dict_insert,
+						key,
+						{
+							__$namespace: val.__namespace,
+							__$value: val.__value
+						},
+						testFacts.__$attributesNS
+					);
+				}
+				break;
+
+			case _VirtualDom_markerProperty:
+				break;
+
+			default:
+				testFacts.__$properties = A3(
+					__Dict_insert,
+					key,
+					__Json_wrap(value),
+					testFacts.__$properties
+				);
+				break;
+		}
+	}
+
+	return testFacts;
+}
+
+
+var _VirtualDom_applyTaggers = F2(function(taggers, msg)
+{
+	for (var i = taggers.length - 1; i >= 0; i--)
+	{
+		msg = taggers[i](msg);
+	}
+	return msg;
+});
