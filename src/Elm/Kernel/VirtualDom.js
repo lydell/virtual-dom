@@ -2151,37 +2151,43 @@ function _VirtualDom_contentMode(tag)
 }
 
 
-function _VirtualDom_toString(vNode)
+// This is a streaming API. `cb` is a function that receives a small string of HTML,
+// and returns `true` if we should continue, and `false` if we should stop.
+// It’s like a modern JavaScript generator. This allows for streaming server-side HTML.
+// It has not been decided yet how to access this function – it should probably be
+// in JavaScript since `cb` would need to have side effects, and we don’t want Elm
+// code to be able to introspect `Html msg` values (with a `toString` function you
+// could do all sorts of nasty string inspection).
+function _VirtualDom_toString(vNode, cb)
 {
-	return _VirtualDom_toStringHelp(vNode, __3_NORMAL);
+	_VirtualDom_toStringHelp(vNode, __3_NORMAL, cb);
 }
 
 
-function* _VirtualDom_toStringHelp(vNode, contentMode)
+function _VirtualDom_toStringHelp(vNode, contentMode, cb)
 {
 	var vNodeTag = vNode.$;
 
 	switch (vNodeTag)
 	{
 		case __2_THUNK:
-			yield* _VirtualDom_toStringHelp(vNode.__node || (vNode.__node = vNode.__thunk()), contentMode);
-			break;
+			return _VirtualDom_toStringHelp(vNode.__node || (vNode.__node = vNode.__thunk()), contentMode, cb);
 
 		case __2_TAGGER:
-			yield* _VirtualDom_toStringHelp(vNode.__node, contentMode);
-			break;
+			return _VirtualDom_toStringHelp(vNode.__node, contentMode, cb);
 
 		case __2_TEXT:
-			yield contentMode === __3_PRE
+			return cb(
+				contentMode === __3_PRE
 				? _VirtualDom_escape(_VirtualDom_escapeLeadingNewline(vNode.__text))
 				: contentMode === __3_STYLE
 				? _VirtualDom_escapeStyle(vNode.__text)
-				: _VirtualDom_escape(vNode.__text);
-			break;
+				: _VirtualDom_escape(vNode.__text)
+			);
 
 		case __2_CUSTOM:
 			// Not supported.
-			break;
+			return true;
 
 		// at this point `tag` must be __2_NODE or __2_KEYED_NODE
 		default:
@@ -2192,21 +2198,21 @@ function* _VirtualDom_toStringHelp(vNode, contentMode)
 
 			if (contentMode !== __3_NORMAL || !_VirtualDom_validTagName.test(tag))
 			{
-				break;
+				return true;
 			}
 
 			if (!namespace && _VirtualDom_textareaElement.test(tag))
 			{
 				var value = _VirtualDom_escapeLeadingNewline(facts.value || '');
-				yield '<textarea';
-				yield* _VirtualDom_factsToString(facts, 'value');
-				yield '>' + _VirtualDom_escape(value) + '</textarea>';
-				break;
+				if (!cb('<textarea')) return false;
+				if (!_VirtualDom_factsToString(facts, 'value', cb)) return false;
+				if (!cb('>' + _VirtualDom_escape(value) + '</textarea>')) return false;
+				return true;
 			}
 
-			yield '<' + tag;
-			yield* _VirtualDom_factsToString(facts, undefined);
-			yield '>';
+			if (!cb('<' + tag)) return false;
+			if (!_VirtualDom_factsToString(facts, undefined, cb)) return false;
+			if (!cb('>')) return false;
 
 			if (namespace || !_VirtualDom_voidElements.test(tag))
 			{
@@ -2214,20 +2220,20 @@ function* _VirtualDom_toStringHelp(vNode, contentMode)
 				for (var i = 0; i < kids.length; i++)
 				{
 					var kid = kids[i];
-					yield* _VirtualDom_toStringHelp(vNodeTag === __2_NODE ? kid : kid.b, contentMode);
+					if (!_VirtualDom_toStringHelp(vNodeTag === __2_NODE ? kid : kid.b, contentMode, cb)) return false;
 					if (contentMode === __3_PRE)
 					{
 						contentMode === __3_NORMAL;
 					}
 				}
-				yield '</' + tag + '>';
+				if (!cb('</' + tag + '>')) return false;
 			}
-			break;
+			return true;
 	}
 }
 
 
-function* _VirtualDom_factsToString(facts, keyToIgnore)
+function _VirtualDom_factsToString(facts, keyToIgnore, cb)
 {
 	for (var key in facts)
 	{
@@ -2240,12 +2246,12 @@ function* _VirtualDom_factsToString(facts, keyToIgnore)
 				break;
 
 			case 'a__1_STYLE':
-				yield ' style="';
+				if (!cb(' style="')) return false;
 				for (var key in value)
 				{
-					yield _VirtualDom_escape(key) + ':' + _VirtualDom_escape(value[key]) + ';';
+					if (!cb(_VirtualDom_escape(key) + ':' + _VirtualDom_escape(value[key]) + ';')) return false;
 				}
-				yield '"';
+				if (!cb('"')) return false;
 				break;
 
 			case 'a__1_ATTR':
@@ -2254,7 +2260,7 @@ function* _VirtualDom_factsToString(facts, keyToIgnore)
 				{
 					if (_VirtualDom_validAttributeName.test(key))
 					{
-						yield ' ' + key + '="' + _VirtualDom_escape(value[key]) + '"';
+						if (!cb(' ' + key + '="' + _VirtualDom_escape(value[key]) + '"')) return false;
 					}
 				}
 				break;
@@ -2270,12 +2276,12 @@ function* _VirtualDom_factsToString(facts, keyToIgnore)
 					case 'boolean':
 						if (value)
 						{
-							yield ' ' + key;
+							if (!cb(' ' + key)) return false;
 						}
 						break;
 
 					case 'string':
-						yield ' ' + _VirtualDom_propertyToAttributeName(key) + '="' + _VirtualDom_escape(value) + '"';
+						if (!cb(' ' + _VirtualDom_propertyToAttributeName(key) + '="' + _VirtualDom_escape(value) + '"')) return false;
 						break;
 
 					// For other types it's unclear what to do.
@@ -2283,4 +2289,6 @@ function* _VirtualDom_factsToString(facts, keyToIgnore)
 				break;
 		}
 	}
+
+	return true;
 }
