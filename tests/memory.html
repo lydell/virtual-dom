@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory</title>
+</head>
+<body>
+    <button id="workerButton">Mount worker</button>
+    <button id="applicationButton">Mount application</button>
+    <button id="webglTextureButton">Mount WebGL with texture</button>
+    <button id="unmountButton">Unmount</button>
+    <script src="build/main.js"></script>
+    <script>
+        workerButton.onclick = () => {
+            window.app =
+            Elm.MemoryWorker.init();
+        };
+        applicationButton.onclick = () => {
+            window.app =
+            Elm.MemoryApplication.init();
+        };
+        webglTextureButton.onclick = () => {
+            window.app =
+            Elm.MemoryWebGLTexture.init({ node: document.body.lastChild });
+        };
+        unmountButton.onclick = () => {
+            window.app.stop();
+            delete window.app;
+        };
+    </script>
+</body>
+</html>

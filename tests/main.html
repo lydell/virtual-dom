@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main.elm</title>
+    <style>
+        .box {
+          border: 2px solid;
+          height: 100px;
+          width: 100px;
+          margin-top: 20px;
+        }
+        
+        #red {
+          background: red;
+        }
+        #green {
+          background: green;
+        }
+    </style>
+</head>
+<body><!--comment-->
+    <script src="build/main.js" id="node"></script>
+    <script>
+window.customElements.define("elm-portal", class extends HTMLElement {
+  // Base custom element stuff
+  constructor() {
+    super();
+    this._targetNode = document.createElement('div');
+  }
+
+  connectedCallback() {
+    document.querySelector(this.getAttribute("data-target-selector")).appendChild(this._targetNode);
+  }
+  
+  disconnectedCallback() {
+    document.querySelector(this.getAttribute("data-target-selector")).removeChild(this._targetNode);
+  }
+
+  // Re-implementations of HTMLElement functions
+  get childNodes() {
+    return this._targetNode.childNodes;
+  }
+
+//   get firstChild() {
+//     return this._targetNode.firstChild;
+//   }
+    
+//   get previousSibling() {
+//     return this._targetNode.previousSibling;
+//   }
+
+//   get nextSibling() {
+//     return this._targetNode.nextSibling;
+//   }
+
+  replaceData(...args) {
+    return this._targetNode.replaceData(...args);
+  }
+
+  removeChild(...args) {
+    return this._targetNode.removeChild(...args);
+  }
+
+  insertBefore(...args) {
+    return this._targetNode.insertBefore(...args);
+  }
+
+  moveBefore(...args) {
+    return this._targetNode.moveBefore(...args);
+  }
+
+  appendChild(...args) {
+    // To cooperate with the Elm runtime
+    requestAnimationFrame(() => {
+      return this._targetNode.appendChild(...args);
+    });
+  }
+});
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const portal = document.createElement("div");
+            portal.id = "portal";
+            document.documentElement.append(portal);
+            for (const key in Elm) {
+                window.app = Elm[key].init({ node });
+                break;
+            }
+            window.addEventListener("keydown", (event) => {
+              if (event.ctrlKey && event.key === "r") {
+                console.log("Hot reload!");
+                var script = document.createElement("script");
+                script.src = "build/hot.js?v=" + Date.now();
+                document.head.append(script);
+              }
+            }, true);
+        });
+    </script>
+</body>
+</html>

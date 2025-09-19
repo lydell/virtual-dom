@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark moves</title>
+</head>
+<body>
+    <div id="container"></div>
+    <script>
+        let nodes1 = [];
+        let nodes2 = [];
+        let operations = [];
+        function setup() {
+            nodes1.length = 0;
+            nodes2.length = 0;
+            container.replaceChildren();
+            for (let i = 0; i < 1000; i++) {
+                const div = document.createElement("div");
+                div.textContent = i;
+                container.append(div);
+                nodes1.push({ key: i, node: div });
+                nodes2.push({ key: i, node: div });
+            }
+            const times = Math.round(Math.random() * 5);
+            for (let i = 0; i < times; i++) {
+                const from = Math.round(Math.random() * nodes1.length);
+                const to = Math.round(Math.random() * nodes1.length);
+                operations.push(() => {
+                    container.moveBefore(nodes1[from].node, nodes1[to].node);
+                })
+                nodes2.splice(to, 0, ...nodes2.splice(from, 1));
+            }
+        }
+        
+        function moveFast() {
+            for (const operation of operations) {
+                operation();
+            }
+        }
+        
+        function moveSlow(nodes1, nodes2) {
+            // for (let i = container.childElementCount; i > 1; i--) {
+            //     container.moveBefore(container.lastChild, container.firstChild);
+            // }
+            let prev = null;
+            for (let i = nodes2.length - 1; i >= 0; i--) {
+                const current = nodes2[i].node;
+                container.moveBefore(current, prev);
+                prev = current;
+            }
+        }
+        
+        function bothEnds(nodes1, nodes2) {
+            let i = 0;
+            const max = Math.max(nodes1.length, nodes2.length);
+            while (i < max) {
+                const a = nodes1[i];
+                const b = nodes2[i];
+                if (a.key === b.key) {
+                    // do the diff
+                } else {
+                    break;
+                }
+                i++;
+            }
+            
+            let j = max - 1;
+            while (j > i) {
+                const a = nodes1[j];
+                const b = nodes2[j];
+                if (a.key === b.key) {
+                    // do the diff
+                } else {
+                    break;
+                }
+                j--;
+            }
+
+            let prev = j >= nodes1.length ? null : nodes1[j].node;
+            for (let c = j; c >= i; c--) {
+                const a = nodes1[c];
+                const b = nodes2[c];
+                container.moveBefore(b.node, prev);
+                prev = b.node;
+            }
+            
+            // TODO: also handle additions or deletions at the end (different lengths)
+
+        }
+
+        function longestCommonSubsequence(keys1, keys2) {
+            const m = keys1.length;
+            const n = keys2.length;
+            
+            const dp = Array(m + 1);
+            dp[0] = Array(n + 1);
+            for (let i = 1; i < m + 1; i++) {
+                dp[i] = Array(n + 1);
+                for (let j = 1; j < n + 1; j++) {
+                    if (keys1[i - 1] === keys2[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j] || 0, dp[i][j - 1] || 0);
+                    }
+                }
+            }
+            
+            const lcs = {};
+            let i = m;
+            let j = n;
+            while (i > 0 && j > 0) {
+                if (keys1[i - 1] == keys2[j - 1]) {
+                    lcs[keys1[i - 1]] = true;
+                    i--;
+                    j--;
+                } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                    i--;
+                } else {
+                    j--;
+                }
+            }
+            
+            return lcs;
+        }
+        
+        function diff(nodes1, nodes2) {
+            const list1 = nodes1.map(n => n.key);
+            const list2 = nodes2.map(n => n.key);
+            const lcs = longestCommonSubsequence(list1, list2);
+            const d1 = {};
+            const d2 = {};
+            for (const key of list1) {
+                if (!(key in lcs)) {
+                    d1[key] = true;
+                }
+            }
+            for (const key of list2) {
+                if (!(key in lcs)) {
+                    d2[key] = true;
+                }
+            }
+            const moves = {};
+            const removals = {};
+            const additions = {};
+            for (const key in d1) {
+                if (key in d2) {
+                    moves[key] = true;
+                } else {
+                    removals[key] = true;
+                }
+            }
+            for (const key in d2) {
+                if (!(key in d1)) {
+                    additions[key] = true;
+                }
+            }
+            let prev = null;
+            for (let i = nodes2.length - 1; i >= 0; i--) {
+                const current = nodes2[i];
+                if (current.key in additions) {
+                    container.insertBefore(current.node, prev);
+                } else if (current.key in moves) {
+                    container.moveBefore(current.node, prev);
+                }
+                prev = current;
+            }
+            for (const current of nodes1) {
+                if (current.key in removals) {
+                    container.removeChild(current.node);
+                }
+            }
+        }
+
+        setup();
+        console.time("moveFast");
+        moveFast();
+        console.timeEnd("moveFast");
+
+        setup();
+        console.time("moveSlow");
+        moveSlow(nodes1, nodes2);
+        console.timeEnd("moveSlow");
+
+        setup();
+        console.time("bothEnds");
+        bothEnds(nodes1, nodes2);
+        console.timeEnd("bothEnds");
+
+        // setup();
+        // console.time("diff");
+        // diff(nodes1, nodes2);
+        // console.timeEnd("diff");
+    </script>
+</body>
+</html>

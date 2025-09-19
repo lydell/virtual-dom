@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Translate Bug</title>
+</head>
+<body>
+    <div id="container">Klicken Sie, um den Text zu ändern.</div> <!-- = Click to change the text. -->
+    <script>
+        container.addEventListener("click", () => {
+            setText("Falscher Text (sollte nur 10 ms lang sichtbar sein)."); // = Wrong text (should only be visible for 10 ms).
+            setTimeout(() => {
+                setText("Korrekter Text."); // = Correct text.
+            }, 10);
+        }, {once: true});
+        
+        function setText(text) {
+            const child = container.firstChild;
+            if (child.nodeType === 3) {
+                // When not using Google Translate, the container always contains just a text node.
+                console.log("change text", text, child);
+                child.data = text;
+            } else {
+                // When using Google Translate, the container contains a <font> tag instead.
+                console.log("replace with text", text, child);
+                child.replaceWith(document.createTextNode(text));
+            }
+        }
+    </script>
+    <!-- In case you want to compare to Safari. Without this, Safari does not let me translate the page. Safari shows the correct text in the end, but in German, not translated. -->
+    <p style="opacity: 0;">Hier ist zusätzlicher Text auf Deutsch, um die Übersetzung in Safari auszulösen.</p>
+    <!-- You can also try Firefox’s translator. It shows the correct text in the end, translated. -->
+</body>
+</html>

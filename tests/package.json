@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  },
+  "dependencies": {
+    "property-information": "^7.1.0"
+  }
+}

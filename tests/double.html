@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>double</title>
+</head>
+<body>
+    <script src="build/main.js" id="node"></script>
+    <hr>
+    <script id="node2">
+      Elm.Double.init({ node });
+      Elm.Double.init({ node: node2 });
+    </script>
+</body>
+</html>

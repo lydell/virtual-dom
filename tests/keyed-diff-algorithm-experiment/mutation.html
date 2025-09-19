@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mutation</title>
+</head>
+<body>
+    <p><button id="button">Do it</button></p>
+    <p id="one">One</p>
+    <p id="two">Two</p>
+    <script>
+        button.onclick = () => {
+            const mutationObserver = new MutationObserver((records) => {
+                console.log('mutations', records);
+            });
+            mutationObserver.observe(document.body, {
+                attributes: true,
+                childList: true,
+                subtree: true,
+                characterData: true,
+            });
+            document.body.moveBefore(two, one);
+        };
+    </script>
+</body>
+</html>

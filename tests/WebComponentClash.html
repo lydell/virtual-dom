@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main.elm</title>
+    <style>
+        .box {
+          border: 2px solid;
+          height: 100px;
+          width: 100px;
+          margin-top: 20px;
+        }
+        
+        #red {
+          background: red;
+        }
+    </style>
+</head>
+<body>
+    <script src="build/main.js" id="node"></script>
+    <script>
+      window.customElements.define("elm-web-component", class extends HTMLElement {
+        connectedCallback() {
+          const node = document.createElement("div");
+          this.appendChild(node);
+          Elm.WebComponentClash.init({
+            node,
+            flags: {
+              isSubComponent: true,
+            }
+          });
+        }
+      });
+
+      Elm.WebComponentClash.init({
+        node,
+        flags: {
+          isSubComponent: false,
+        }
+      });
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>requestAnimationFrame raw</title>
+</head>
+<body>
+    <script>
+        const callback = () => {
+            console.log("callback");
+            cancelAnimationFrame(id2);
+        };
+        requestAnimationFrame(callback);
+        const id2 = requestAnimationFrame(callback);
+    </script>
+</body>
+</html>

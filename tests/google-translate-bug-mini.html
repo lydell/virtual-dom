@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Translate Bug</title>
+</head>
+<body>
+    <div id="container">Klicka för att ändra texten.</div> <!-- = Click to change the text. -->
+    <script>
+        container.addEventListener("click", () => {
+            setText("Fel text (ska endast synas i 10 ms)."); // = Wrong text (should only be visible for 10 ms).
+            setTimeout(() => {
+                setText("Rätt text."); // = Correct text.
+            }, 10);
+        }, {once: true});
+        
+        function setText(text) {
+            const child = container.firstChild;
+            if (child.nodeType === 3) {
+                console.log("change text", text, child);
+                child.data = text;
+            } else {
+                console.log("replace with text", text, child);
+                child.replaceWith(document.createTextNode(text));
+            }
+        }
+    </script>
+</body>
+</html>

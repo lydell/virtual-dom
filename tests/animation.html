@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>requestAnimationFrame</title>
+</head>
+<body>
+    <div id="js_count">0</div>
+    <script>
+        let count = 0;
+        let pending = [];
+        window.requestAnimationFrame = (callback) => {
+            const wasPending = pending.length > 0;
+            pending.push(callback);
+            if (!wasPending) {
+                setTimeout(() => {
+                    count++;
+                    js_count.textContent = count;
+                    const callbacks = pending.slice();
+                    pending.length = 0;
+                    for (const callback of callbacks)
+                        callback();
+                }, 1000);
+            }
+        };
+    </script>
+    <script src="build/main.js" id="node"></script>
+    <script>
+        for (const key in Elm) {
+            Elm[key].init({ node });
+            break;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>requestAnimationFrame test</title>
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+
+        #animationElement {
+            position: absolute;
+            top: 100px;
+            left: 0;
+            width: 30px;
+            height: 30px;
+            background-color: magenta;
+        }
+    </style>
+</head>
+<body>
+    FPS: <span id="fpsElement"></span>
+    <br>
+    <label>Busywork: <input type="number" id="busyInput" value="0" min="0"> ms</label>
+
+    <div id="animationElement"></div>
+
+    <script>
+        // Animation state:
+        let x = 0;
+        let dx = 1;
+        const maxMovement = window.innerWidth - animationElement.clientWidth;
+
+        // FPS state:
+        let previousTimestamp = undefined;
+        const history = [];
+        const maxHistory = 100;
+        
+        // Busywork state:
+        let busyMs = 0;
+        busyInput.oninput = () => {
+            if (Number.isFinite(busyInput.valueAsNumber)) {
+                busyMs = busyInput.valueAsNumber;
+            }
+        };
+
+        requestAnimationFrame(function raf(timestamp) {
+            // Keep track of FPS:
+            if (previousTimestamp !== undefined) {
+                const elapsed = timestamp - previousTimestamp;
+                history.push(elapsed);
+                if (history.length > maxHistory) {
+                    history.shift();
+                }
+                const average = history.reduce((a, b) => a + b) / history.length;
+                fpsElement.textContent = Math.round(1000 / average);
+            }
+            previousTimestamp = timestamp;
+
+            // Busywork:
+            const start = Date.now();
+            while (Date.now() < start + busyMs) {}
+
+            // Animation state update:
+            if (dx > 0) {
+                if (x >= maxMovement) {
+                    dx = -1;
+                }
+            } else {
+                if (x <= 0) {
+                    dx = 1;
+                }
+            }
+            x += dx;
+
+            // Animation:
+            animationElement.style.transform = `translateX(${x}px)`;
+
+            requestAnimationFrame(raf);
+        });
+    </script>
+</body>
+</html>

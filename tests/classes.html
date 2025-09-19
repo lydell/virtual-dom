@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classes</title>
+    <style>
+        .bold {
+            font-weight: bold;
+        }
+        .italic {
+            font-style: italic;
+        }
+        .outline {
+            outline: 3px solid magenta;
+        }
+    </style>
+</head>
+<body>
+    <script src="build/main.js" id="node"></script>
+    <script>
+        for (const key in Elm) {
+            Elm[key].init({ node });
+            break;
+        }
+        document.getElementById("one").classList.add("outline");
+        document.getElementById("two").classList.add("outline");
+    </script>
+</body>
+</html>

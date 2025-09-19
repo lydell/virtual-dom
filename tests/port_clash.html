@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port clash</title>
+</head>
+<body>
+    <script src="build/main.js"></script>
+    <script>
+        var app1 = Elm.PortClash.init({flags: "One"});
+        var app2 = Elm.PortClash.init({flags: "Two"});
+        app1.ports.incoming.send(1);
+        app2.ports.incoming.send(2);
+        setTimeout(() => {
+            app1.ports.incoming.send(11);
+            app2.ports.incoming.send(22);
+        }, 200);
+    </script>
+</body>
+</html>

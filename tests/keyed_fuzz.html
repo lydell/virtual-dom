@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyedFuzz</title>
+    <style>
+        main {
+            display: flex;
+            gap: 2 em;
+        }
+    </style>
+</head>
+<body>
+    <script src="build/main.js"></script>
+    <script id="node">
+        const app = Elm.KeyedFuzz.init({ node });
+        app.ports.verify.subscribe(list => {
+            requestAnimationFrame(() => {
+                const ul = document.getElementById("keyedUl");
+                const ok = ul.innerText === list.join("\n");
+                app.ports.verified.send(ok);
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

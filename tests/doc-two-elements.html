@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Error 2+ custom elements</title>
+    </head>
+    <body data-elm><div id="root" data-elm></div>
+        <script src="./build/main.js"></script>
+        <script src="./custom-elm.js"></script>
+        <script>
+            Elm.DocTwoElements.init({ node: document.getElementById("root") });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <p>Willkommen ins die Schule.</p>
+    <p>
+        Hier ist text und einen <a href="https://example.com" id="a">link</a> mit einem <input type="text" id="input"> input. Neuer wörte. <!--kommentar--> Hilft deinem Körper.
+    </p>
+    <p>
+        Möchtest do ein Ball <a href="https://example.com" id="a2">nehmen?</a>
+    </p>
+    <p>
+        Möchtest do ein Ball <a href="https://example.com" id="a3">nehmen</a>
+    </p>
+    <p>
+        Möchtest do ein Ball <a href="https://example.com" id="a4">nehmen</a>?
+    </p>
+    <p>
+        Möchtest do ein Ball <button id="button2">nehmen?</button>
+    </p>
+    <button id="button">Mehr Text</button>
+    <output id="output"></output>
+    <script>
+        // Safari somehow has the same event listeners on duplicated elements.
+        // Firefox doesn’t.
+        // Safari seems to replace text nodes.
+        // Firefox seems to mutate text nodes.
+        a.onclick = event => {
+            event.preventDefault();
+            alert(a.href);
+        };
+        a2.onclick = event => {
+            event.preventDefault();
+            alert("a2: " + a.href);
+        };
+        a3.addEventListener('click', event => {
+            event.preventDefault();
+            alert("a3: " + a.href);
+        });
+        input.oninput = event => {
+            output.textContent = input.value;
+        };
+        button.onclick = event => {
+            output.textContent += ' Mehr Text';
+        };
+        button2.onclick = event => {
+            alert('Du hast ein Ball genommen!');
+        };
+        const observer = new MutationObserver(mutations => {
+            console.log('Mutations:', mutations);
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true, attributeOldValue: true, characterDataOldValue: true});
+    </script>
+</body>
+</html>

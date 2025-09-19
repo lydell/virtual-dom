@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textarea</title>
+</head>
+<body>
+    <textarea id="other">other <strong>textarea</strong>&gt;<!--yo--></textarea>
+    <script>{const pre = document.createElement("pre"); pre.textContent = other.value; document.currentScript.replaceWith(pre);}</script>
+    <textarea id="vother" value="cool bananas"></textarea>
+    <script>{const pre = document.createElement("pre"); pre.textContent = vother.value; document.currentScript.replaceWith(pre);}</script>
+    <div id="node"><textarea>with children</textarea></div>
+    <script src="build/main.js" id="node"></script>
+    <script>
+        const observer = new MutationObserver(mutations => {
+            console.log(mutations);
+        });
+        observer.observe(document.body, { childList: true, attributes: true, subtree: true });
+        for (const key in Elm) {
+            Elm[key].init({ node });
+            break;
+        }
+    </script>
+</body>
+</html>

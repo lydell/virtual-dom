@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Translate Bug</title>
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+        [role="button"] {
+            border: 2px solid;
+            border-radius: 4px;
+            padding: 8px;
+            cursor: pointer;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="container" style="width: 350px; background-color: antiquewhite; padding: 16px; display: grid; gap: 8px">
+    </div>
+    <script>
+        const div1 = document.createElement("div");
+        const div2 = document.createElement("div");
+        const div3 = document.createElement("div");
+        div1.append(document.createTextNode(""));
+        div2.append(document.createTextNode(""));
+        div3.append(document.createTextNode(""));
+        container.append(div1, div2, div3);
+        
+        let delay = 10;
+        
+        function render(i) {
+            switch (i) {
+                case 0: {
+                    div1.setAttribute("role", "button");
+                    changeText(div1, "Skicka in");
+                    div1.onclick = () => {
+                        render(1);
+                    };
+
+                    div2.setAttribute("role", "button");
+                    changeText(div2, "Se hur laddar-sidan ser ut");
+                    div2.onclick = () => {
+                        render(2);
+                    };
+
+                    div3.remove();
+                    break;
+                }
+
+                case 1:
+                case 2: {
+                    div1.removeAttribute("role");
+                    div1.onclick = null;
+                    changeText(div1, `Laddar… (ska bara synas i ${delay} ms)`);
+                    
+                    changeText(div2, "Byt metod");
+                    div2.onclick = () => {
+                        render(0);
+                    }
+                    
+                    div3.setAttribute("role", "button");
+                    changeText(div3, "Avbryt");
+                    div3.onclick = () => {
+                        render(0);
+                    }
+                    container.append(div3);
+                    
+                    if (i == 1) {
+                        setTimeout(() => {
+                            render(3);
+                        }, delay);
+                    }
+                    break;
+                }
+
+                case 3: {
+                    changeText(div1, "Inskickningen gick fel!");
+                    
+                    changeText(div2, "Försök igen");
+                    div2.onclick = () => {
+                        render(1);
+                    };
+                    
+                    changeText(div3, "Tillbaka");
+                    div3.onclick = () => {
+                        render(0);
+                    };
+                    break;
+                }
+            }
+        }
+        
+        function changeText(div, text) {
+            const child = div.firstChild;
+            if (child.nodeType === 3) {
+                console.log("change text", text, child);
+                // child.replaceData(0, child.data.length, text);
+                child.data = text;
+                child.replaceWith(child);
+                // child.replaceWith(document.createTextNode(text));
+            } else {
+                console.log("replace with text", text, child);
+                child.remove();
+                div.append(document.createTextNode(text));
+            }
+        }
+        
+        render(0);
+    </script>
+</body>
+</html>

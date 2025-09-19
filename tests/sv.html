@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Adds translated-ltr class, that’s a good thing to hook into. -->
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <p>Ett test av översättning.</p>
+    <!-- Seems to preserve all elements (and non-text nodes) -->
+    <p>
+        Lite text och en <a href="https://example.com" id="a">länk</a> med ett <input type="text" id="input"> fält. Ny mening. <!--kommentar--> Text efter kommentar.
+    </p>
+    <output id="output"></output>
+    <script>
+        a.onclick = event => {
+            event.preventDefault();
+            alert(a.href);
+        };
+        input.oninput = event => {
+            output.textContent = input.value;
+        };
+    </script>
+</body>
+</html>
