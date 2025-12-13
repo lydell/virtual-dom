@@ -32,9 +32,9 @@ This patch extends the protection to cover `outerHTML` as well:
     index 9fe8504..690eaa8 100644
     --- a/src/Elm/Kernel/VirtualDom.js
     +++ b/src/Elm/Kernel/VirtualDom.js
-    @@ -303,7 +303,7 @@ function _VirtualDom_noOnOrFormAction(key)
+    @@ -303,7 +303,7 @@ function _VirtualDom_noUnsafeAttribute(key)
 
-     function _VirtualDom_noInnerHtmlOrFormAction(key)
+     function _VirtualDom_noUnsafeProperty(key)
      {
     -   return key == 'innerHTML' || key == 'formAction' ? 'data-' + key : key;
     +   return key == 'innerHTML' || key == 'outerHTML' || key == 'formAction' ? 'data-' + key : key;

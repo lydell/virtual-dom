@@ -23,6 +23,37 @@
 <body><!--comment-->
     <script src="build/main.js" id="node"></script>
     <script>
+customElements.define(
+    'my-iframe',
+    class extends HTMLElement {
+        iframe = document.createElement('iframe');
+
+        connectedCallback() {
+            // It's important to set `sandbox` on iframes for security.
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox
+            this.iframe.sandbox = '';
+            this.appendChild(this.iframe);
+        }
+
+        // Note: You can't call the attribute `srcdoc` even on the custom element.
+        // For simplicity, Elm forbids that name regardless of element.
+        // Simply choose another name.
+        static observedAttributes = ['html'];
+        
+        attributeChangedCallback(name, _oldValue, newValue) {
+            switch (name) {
+                case 'html':
+                    if (newValue === null) {
+                        this.iframe.removeAttribute('srcdoc');
+                    } else {
+                        this.iframe.setAttribute('srcdoc', newValue);
+                    }
+                    break;
+            }
+        }
+    }
+);
+
 window.customElements.define("elm-portal", class extends HTMLElement {
   // Base custom element stuff
   constructor() {

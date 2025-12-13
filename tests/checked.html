@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>checked</title>
+</head>
+<body>
+    <input type="checkbox" id="input">
+    <script>
+        input.addEventListener("click", event => {
+            console.log("click", input.checked);
+            // event.preventDefault();
+            input.checked = false;
+            console.log("click after", input.checked);
+            Promise.resolve().then(() => {
+                console.log("click after promise", input.checked);
+            });
+            setTimeout(() => {
+                console.log("click after timeout", input.checked);
+            }, 0);
+        });
+    </script>
+</body>
+</html>

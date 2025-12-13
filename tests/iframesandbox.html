@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iframe sandbox</title>
+</head>
+<body>
+    <!-- <img src="https://cf42f2c0-b125-4ef0-9fcc-24a8cc6c8666.mdnplay.dev/en-US/docs/Web/API/HTMLImageElement/crossOrigin/clock-demo-400px.png" crossorigin="use-credentials" alt=""> -->
+    <script>
+        // const img = document.createElement("img");
+        // document.body.append(img);
+        // img.src = "/";
+        // setTimeout(() => {
+        //     img.src = "https://cf42f2c0-b125-4ef0-9fcc-24a8cc6c8666.mdnplay.dev/en-US/docs/Web/API/HTMLImageElement/crossOrigin/clock-demo-400px.png";
+        //     img.crossOrigin = "use-credentials";
+        // }, 5000);
+
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        
+        const srcdoc = `<p>Hi</p><script>window.parent.document.body.append('injected 0')<\/script>`;
+            
+        const useAttributes = true;
+        
+        let useSrcdoc = true;
+        const toggle = () => {
+            if (useSrcdoc) {
+                // Important! Must be set before!
+                // iframe.setAttribute("sandbox", "allow-downloads allow-forms allow-top-navigation");
+                iframe.sandbox = "allow-downloads allow-forms allow-top-navigation";
+                if (useAttributes) {
+                    // iframe.removeAttribute("src");
+                    iframe.setAttribute("src", "https://example.com");
+                    iframe.setAttribute("srcdoc", srcdoc.replace('0', Date.now()));
+                } else {
+                    iframe.srcdoc = srcdoc;
+                    iframe.src = "";
+                }
+            } else {
+                iframe.removeAttribute("sandbox");
+                if (useAttributes) {
+                    iframe.removeAttribute("srcdoc");
+                    iframe.setAttribute("src", "https://example.com");
+                } else {
+                    iframe.srcdoc = "";
+                    iframe.src = "https://example.com";
+                }
+            }
+            useSrcdoc = !useSrcdoc;
+        };
+
+        const button = document.createElement("button");
+        button.textContent = "Toggle";
+        button.onclick = toggle;
+            
+        toggle();
+
+        document.body.append(button);
+    </script>
+</body>
+</html>

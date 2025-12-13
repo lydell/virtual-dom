@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Preact Google Translate</title>
+</head>
+<body>
+  <!-- Safari won’t offer translation unless there is enough text on the page. -->
+  <p>Jeden Morgen auf dem Weg zur Arbeit komme ich an vielen berühmten Sehenswürdigkeiten vorbei. Da ist zunächst der Große Tiergarten, welcher schon über 500 Jahre alt ist. Von hier ist es nicht weit bis zum Brandenburger Tor und der Siegessäule. Hier steige ich in die U-Bahn und fahre einige Stationen bis zum Alexanderplatz, wo sich die Weltzeituhr und das Wahrzeichen der Stadt, der Fernsehturm befinden.</p>
+  <p>Von dort sind es nur wenige Minuten Fußweg bis zum Kurfürstendamm, der riesigen Einkaufsstraße mit zahlreichen Restaurants, Geschäften und Hotels.</p>
+  <p>Hier arbeite ich als Hotelfachfrau und betreue die zahlreichen Gäste des Hotels, welche als Touristen Berlin besichtigen. Als echte Berlinerin kann ich ihnen dabei gute Tipps geben, welche Sehenswürdigkeiten sich wirklich lohnen und wie sie auf dem besten Wege dorthin gelangen. Sehr oft kommt man so mit den Gästen unserer Stadt ins Gespräch und erfährt, aus welchen Ländern sie angereist sind und ob es Ihnen in Berlin gefällt. Als besonderen Service bietet unser Hotel auch eigene Stadtrundfahrten an, die immer sehr gern gebucht werden.</p>
+  <div id="root"></div>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.20.1';
+    import { useState } from 'https://esm.sh/preact@10.20.1/hooks';
+    
+    function App(props) {
+      const [count, setCount] = useState(0);
+      return h(
+        'div',
+        null,
+        h(
+          'div',
+          {},
+          h('p', null, count === 1 ? h('strong', null, count) : count, ` ist die Anzahl `),
+          h('button', {
+            onClick: () => {
+              setCount(count + 1);
+            }
+          }, 'Inkrement')
+        )
+      );
+    }
+
+    render(h(App), root);
+  </script>
+</body>
+</html>
+

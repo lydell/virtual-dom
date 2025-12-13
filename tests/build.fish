@@ -1,4 +1,4 @@
-set file JsonEvalDemoMinimal.elm
+set file React.elm
 
 set dir (dirname (status -f))
 cd $dir
@@ -21,6 +21,7 @@ rm -f $json/artifacts.dat
 rm -f $test/artifacts.dat
 
 cp ../src/Elm/Kernel/*.js $virtual_dom/src/Elm/Kernel/
+cp ../src/*.elm $virtual_dom/src/
 cp ../../browser/src/Browser/*.elm $browser/src/Browser/
 cp ../../browser/src/Debugger/*.elm $browser/src/Debugger/
 cp ../../browser/src/Elm/Kernel/*.js $browser/src/Elm/Kernel/

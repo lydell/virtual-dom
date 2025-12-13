@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ed</title>
+</head>
+<body>
+    <div>
+        <input type="radio" name="one" id="one">
+        <input type="radio" name="one" id="two" checked>
+        <button id="button">Next</button>
+    </div>
+    <script>
+        button.addEventListener("click", () => {
+            one.name = "two";
+            one.checked = true;
+            two.name = "two";
+            two.checked = false;
+        });
+    </script>
+</body>
+</html>
+
+<!--
+Ok, I think I found it:
+
+https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio):concept-fe-checked-3
+
+> When any of the following phenomena occur, if the element's checkedness state is true after the occurrence, the checkedness state of all the other elements in the same radio button group must be set to false:
+>
+> - The element's name attribute is set, changed, or removed.
+
+So, here’s what happens. We start with the following:
+
+```
+<input type="radio" name="one">
+<input type="radio" name="one" checked>
+```
+
+Then, we’d like to change the `name` to `two` for both of them, and switch which one is checked. That ends up being 4 DOM mutations, which happen in this order:
+
+1. Change input 1 `name` to `two`.
+2. Set input 1 `checked` to `true`.
+3. Change input 2 `name` to `two`.
+4. Set input 2 `checked` to `false`.
+
+Let’s take a look at what the output is at each step.
+
+1. Change input 1 `name` to `two`.
+
+```
+<input type="radio" name="two">
+<input type="radio" name="one" checked>
+```
+
+2. Set input 1 `checked` to `true`.
+
+```
+<input type="radio" name="two" checked>
+<input type="radio" name="one" checked>
+```
+
+3. Change input 2 `name` to `two`.
+
+```
+<input type="radio" name="two" checked>
+<input type="radio" name="two" checked>
+```
+
+BUT! It’s not allowed to have _two_ checked radio buttons in the same group at once! So the rule that I quoted from the spec kicks in:
+
+- Was the element's name attribute is set, changed, or removed? Yes it was changed.
+- Is the element's checkedness state is true after that? Yes, it’s still checked since before.
+- Then the checkedness state of all the other elements in the same radio button group must be set to false.
+
+So we end up with:
+
+```
+<input type="radio" name="two">
+<input type="radio" name="two" checked>
+```
+
+4. Set input 2 `checked` to `false`.
+
+```
+<input type="radio" name="two">
+<input type="radio" name="two">
+```
+
+And there we have it, none of them ended up being checked.
+
+The next render, there is no changing of `name` attributes happening, so the `checked` mutations work and we end up with the desired outcome:
+
+```
+<input type="radio" name="two" checked>
+<input type="radio" name="two">
+```
+
+Tricky!
+
+I wonder if there’s anything elm/virtual-dom can do about it, or if this is a shortcoming of virtual DOM vs the messy world of the real DOM.
+
+-->

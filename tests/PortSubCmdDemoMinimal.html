@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortSubCmdDemoMinimal</title>
+</head>
+<body>
+    <script src="build/main.js" id="node"></script>
+    <script>
+        const app = Elm.PortSubCmdDemoMinimal.init({ node });
+        app.ports.getFromLocalStorage.subscribe(({debug}) => {
+            console.log("app.ports.getFromLocalStorage:", debug);
+            app.ports.gotTextFromLocalStorage.send("✅ fake text from LocalStorage");
+        });
+    </script>
+</body>
+</html>

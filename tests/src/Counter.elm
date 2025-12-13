@@ -9,6 +9,7 @@ module Counter exposing (..)
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
+import Html.Lazy exposing (lazy)
 
 
 
@@ -61,4 +62,9 @@ view model =
         [ button [ onClick Decrement ] [ text "-" ]
         , div [] [ text (String.fromInt model.count) ]
         , button [ onClick Increment ] [ text "+" ]
+        , lazy slö (model.count // 3)
         ]
+
+
+slö count =
+    Html.text (String.fromInt (Debug.log "slö" count))
