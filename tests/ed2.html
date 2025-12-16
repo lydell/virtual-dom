@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>radio name and checked demo 2</title>
+</head>
+<body>
+    <div>
+        <input type="radio" name="one" id="radio1" checked>
+        <input type="radio" name="two" id="radio2" checked>
+        <button id="button">Next</button>
+    </div>
+    <script>
+        button.addEventListener("click", () => {
+            radio1.checked = true;
+            radio1.name = "two";
+            radio2.checked = true;
+            radio2.name = "one";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Preact Google Translate</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.20.1';
+    import { useState } from 'https://esm.sh/preact@10.20.1/hooks';
+    
+    function App(props) {
+      const [count, setCount] = useState('one');
+      return h(
+        'div',
+        null,
+        h('input', {
+          type: 'radio',
+          name: count,
+          checked: count === 'two',
+        }),
+        h('input', {
+          type: 'radio',
+          name: count,
+          checked: count === 'one',
+        }),
+        h('button', {
+          onClick: () => {
+            setCount('two');
+          },
+          children: 'Next'
+        }),
+        h('input', {
+          type: 'radio',
+          name: count === 'one' ? 'one_' : 'two_',
+          checked: true,
+        }),
+        h('input', {
+          type: 'radio',
+          name: count === 'one' ? 'two_' : 'one_',
+          checked: true,
+        }),
+      );
+    }
+
+    render(h(App), root);
+  </script>
+</body>
+</html>
+

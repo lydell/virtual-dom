@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>React Ed</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useState } from 'https://esm.sh/react@18.2.0';
+    import { jsxs } from 'https://esm.sh/react@18.2.0/jsx-runtime';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+    
+    function App(props) {
+      const [count, setCount] = useState('one');
+      return jsxs(
+        'div',
+        {
+          children: [
+            jsxs('input', {
+              type: 'radio',
+              name: count,
+              checked: count === 'two',
+            }),
+            jsxs('input', {
+              type: 'radio',
+              name: count,
+              checked: count === 'one',
+            }),
+            jsxs('button', {
+              onClick: () => {
+                setCount('two');
+              },
+              children: 'Next'
+            }),
+            jsxs('input', {
+              type: 'radio',
+              name: count === 'one' ? 'one_' : 'two_',
+              checked: true,
+            }),
+            jsxs('input', {
+              type: 'radio',
+              name: count === 'one' ? 'two_' : 'one_',
+              checked: true,
+            }),
+          ]
+        }
+      );
+    }
+
+    createRoot(root).render(React.createElement(App));
+  </script>
+</body>
+</html>
+

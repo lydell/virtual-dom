@@ -1,4 +1,4 @@
-set file React.elm
+set file Ed.elm
 
 set dir (dirname (status -f))
 cd $dir

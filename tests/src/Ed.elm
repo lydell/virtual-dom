@@ -1,9 +1,10 @@
 module Ed exposing (main)
 
 import Browser
-import Html as H
-import Html.Attributes as HA
-import Html.Events as HE
+import Html exposing (Html)
+import Html.Attributes
+import Html.Events
+import Html.Keyed
 
 
 main : Program () Model Msg
@@ -35,35 +36,28 @@ toName model =
             "Two"
 
 
-view : Model -> H.Html Msg
+view : Model -> Html Msg
 view model =
-    H.div []
-        [ H.input
-            ([ HA.type_ "radio"
-             , HA.name (toName model)
-             , HA.checked (model == Two)
-             ]
-             -- ++ (case model of
-             --         One ->
-             --             []
-             --         Two ->
-             --             [ HA.checked True ]
-             --    )
-            )
-            []
-        , H.input
-            ([ HA.type_ "radio"
-             , HA.name (toName model)
-             , HA.checked (model == One)
-             ]
-             -- ++ (case model of
-             --         One ->
-             --             [ HA.checked True ]
-             --         Two ->
-             --             []
-             --    )
-            )
-            []
-        , H.button [ HE.onClick Next ]
-            [ H.text "Next" ]
+    Html.Keyed.node "div"
+        []
+        [ ( "radio1-" ++ toName model
+          , Html.input
+                [ Html.Attributes.type_ "radio"
+                , Html.Attributes.name (toName model)
+                , Html.Attributes.checked (model == Two)
+                ]
+                []
+          )
+        , ( "radio2-" ++ toName model
+          , Html.input
+                [ Html.Attributes.type_ "radio"
+                , Html.Attributes.name (toName model)
+                , Html.Attributes.checked (model == One)
+                ]
+                []
+          )
+        , ( "button"
+          , Html.button [ Html.Events.onClick Next ]
+                [ Html.text "Next" ]
+          )
         ]

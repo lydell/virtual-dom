@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ed</title>
+    <title>radio name and checked demo</title>
 </head>
 <body>
     <div>
-        <input type="radio" name="one" id="one">
-        <input type="radio" name="one" id="two" checked>
+        <input type="radio" name="one" id="radio1">
+        <input type="radio" name="one" id="radio2" checked>
         <button id="button">Next</button>
     </div>
     <script>
         button.addEventListener("click", () => {
-            one.name = "two";
-            one.checked = true;
-            two.name = "two";
-            two.checked = false;
+            radio1.name = "two";
+            radio1.checked = true;
+            radio2.name = "two";
+            radio2.checked = false;
         });
     </script>
 </body>
