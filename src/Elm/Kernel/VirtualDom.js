@@ -30,7 +30,7 @@ import VirtualDom exposing (toHandlerInt)
 // grep --invert-match void src/Elm/Kernel/VirtualDom.js | grep --only --extended-regexp '_{2}[0-9a-z]\w+' | awk '!visited[$0]++' >b.txt
 // # Keep only the double underscore tokens from the reference commit that still exist.
 // grep --fixed-strings --line-regexp --file=b.txt a.txt
-void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, __tag: null, __facts: null, __kids: null, __namespace: null, __2_KEYED_NODE: null, __2_CUSTOM: null, __model: null, __render: null, __diff: null, __2_TAGGER: null, __tagger: null, __node: null, __2_THUNK: null, __refs: null, __thunk: null, __1_EVENT: null, __key: null, __value: null, __1_STYLE: null, __1_PROP: null, __1_ATTR: null, __1_ATTR_NS: null, __handler: null, __eventNode: null };
+// __2_TEXT __text __descendantsCount __2_NODE __tag __facts __kids __namespace __2_KEYED_NODE __2_CUSTOM __model __render __diff __2_TAGGER __tagger __node __2_THUNK __refs __thunk __1_EVENT __key __value __1_STYLE __1_PROP __1_ATTR __1_ATTR_NS __handler __eventNode
 
 
 
