@@ -1697,6 +1697,9 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode, tNode)
 	var domNode = tNode.__domNode;
 	var parentNode = domNode.parentNode;
 	var isTextNode = domNode.nodeType === 3;
+	// Reset children before rendering afresh. Otherwise we might keep references to old children
+	// if the new render results in fewer children.
+	tNode.__children = Object.create(null);
 	var newNode = _VirtualDom_render(y, eventNode, tNode);
 
 	// An extension might have removed the element. In this case, we are redrawing because `x` and `y`
