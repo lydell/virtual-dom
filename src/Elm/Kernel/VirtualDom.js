@@ -67,17 +67,35 @@ function _VirtualDom_insertAfter(parent, child, reference)
 
 function _VirtualDom_moveBefore_(parent, child, reference)
 {
-	if (!(child.parentNode === parent && child.nextSibling === reference))
+	if (child.parentNode === parent)
 	{
-		parent.moveBefore(child, reference);
+		if (child.nextSibling !== reference)
+		{
+			parent.moveBefore(child, reference);
+		}
+	}
+	else
+	{
+		// An extension might have removed `child`, or moved it to another parent.
+		// In such cases, `moveBefore` would throw an error.
+		parent.insertBefore(child, reference);
 	}
 }
 
 function _VirtualDom_moveAfter_(parent, child, reference)
 {
-	if (!(child.parentNode === parent && child.previousSibling === reference))
+	if (child.parentNode === parent)
 	{
-		parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+		if (child.previousSibling !== reference)
+		{
+			parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+		}
+	}
+	else
+	{
+		// An extension might have removed `child`, or moved it to another parent.
+		// In such cases, `moveBefore` would throw an error.
+		parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
 	}
 }
 
