@@ -105,8 +105,9 @@ var _VirtualDom_moveBefore = _VirtualDom_supports_moveBefore ? _VirtualDom_moveB
 
 var _VirtualDom_moveAfter = _VirtualDom_supports_moveBefore ? _VirtualDom_moveAfter_ : _VirtualDom_insertAfter;
 
-function _VirtualDom_remove(domNode)
+function _VirtualDom_remove(vNode, domNode)
 {
+	var isTextNode = domNode.nodeType === 3;
 	// An extension might have (re-)moved the element, so even if we have a
 	// reference to the `parentDomNode` that _should_ be the parent, we can’t
 	// just call `parentDomNode.removeChild(domNode)`. That throws an error if
@@ -115,7 +116,11 @@ function _VirtualDom_remove(domNode)
 	if (parentNode)
 	{
 		parentNode.removeChild(domNode);
+		// If the DOM node is a text node and its text has changed, it was translated.
+		return isTextNode && domNode.data !== _VirtualDom_getTextForRemovedNode(vNode);
 	}
+	// The DOM node has been removed: If it is a text node, it was translated.
+	return isTextNode;
 }
 
 // A `tNode`, or “tree node”, is a tree structure that contains DOM nodes. The
@@ -660,6 +665,23 @@ function _VirtualDom_renderTranslated(vNode, tNode)
 	}
 
 	return tNode.__domNode;
+}
+
+// Similar to `_VirtualDom_renderTranslated`, this is used when removing
+// nodes that have been rendered before, so we can assume that lazy nodes
+// have their `__node` property set.
+function _VirtualDom_getTextForRemovedNode(vNode)
+{
+	var tag = vNode.$;
+	return (
+		tag === __2_THUNK || tag === __2_TAGGER
+			? _VirtualDom_getTextForRemovedNode(vNode.__node)
+			:
+		tag === __2_TEXT
+			? vNode.__text
+			:
+		""
+	);
 }
 
 
@@ -1389,7 +1411,11 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 	{
 		for (var i = yLen; i < xLen; i++)
 		{
-			_VirtualDom_remove(tNode.__children[i].__domNode);
+			var removedTranslated = _VirtualDom_remove(xKids[i], tNode.__children[i].__domNode);
+			if (removedTranslated)
+			{
+				translated = true;
+			}
 			delete tNode.__children[i];
 		}
 	}
@@ -1500,7 +1526,11 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			}
 			else
 			{
-				_VirtualDom_remove(tNode.__children[xKey].__domNode);
+				var removedTranslated = _VirtualDom_remove(x, tNode.__children[xKey].__domNode);
+				if (removedTranslated)
+				{
+					translated = true;
+				}
 				delete tNode.__children[xKey];
 				xIndexLower++;
 			}
@@ -1550,7 +1580,11 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			}
 			else
 			{
-				_VirtualDom_remove(tNode.__children[xKey].__domNode);
+				var removedTranslated = _VirtualDom_remove(x, tNode.__children[xKey].__domNode);
+				if (removedTranslated)
+				{
+					translated = true;
+				}
 				delete tNode.__children[xKey];
 				xIndexUpper--;
 			}
@@ -1651,8 +1685,12 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 		var xKid = xKids[xIndexLower];
 		var xKey = xKid.a;
 		if (!(xKey in yKidsMap)) {
-			_VirtualDom_remove(tNode.__children[xKid.a].__domNode);
-			delete tNode.__children[xKid.a];
+			var removedTranslated = _VirtualDom_remove(xKid.b, tNode.__children[xKey].__domNode);
+			if (removedTranslated)
+			{
+				translated = true;
+			}
+			delete tNode.__children[xKey];
 		}
 	}
 
