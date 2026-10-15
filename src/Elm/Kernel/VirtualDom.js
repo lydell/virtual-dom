@@ -906,7 +906,7 @@ function _VirtualDom_applyAttrsNS(domNode, prevNsAttrs, nsAttrs)
 		}
 		else if (previous.__namespace !== namespace)
 		{
-			domNode.removeAttributeNS(previous.__namespace, key);
+			_VirtualDom_removeAttributeNS(domNode, previous.__namespace, key);
 			domNode.setAttributeNS(namespace, key, value);
 		}
 		else if (previous.__value !== value)
@@ -923,9 +923,17 @@ function _VirtualDom_removeAttrsNS(domNode, prevNsAttrs, nsAttrs)
 	{
 		if (!(key in nsAttrs))
 		{
-			domNode.removeAttributeNS(prevNsAttrs[key].__namespace, key);
+			_VirtualDom_removeAttributeNS(domNode, prevNsAttrs[key].__namespace, key);
 		}
 	}
+}
+
+
+// `setAttributeNS` takes a qualified name (like `xlink:href`), but
+// `removeAttributeNS` takes a local name (like `href`).
+function _VirtualDom_removeAttributeNS(domNode, namespace, key)
+{
+	domNode.removeAttributeNS(namespace, key.slice(key.indexOf(':') + 1));
 }
 
 
