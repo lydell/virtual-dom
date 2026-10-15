@@ -1063,7 +1063,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 	if (x === y)
 	{
 		return {
-			__domNode: _VirtualDom_quickVisit(x, y, eventNode, tNode),
+			__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
 			__translated: false,
 			__reinsert: false
 		};
@@ -1104,7 +1104,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
 				return {
-					__domNode: _VirtualDom_quickVisit(x, y, eventNode, tNode),
+					__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
 					__translated: false,
 					__reinsert: false
 				};
@@ -1216,46 +1216,45 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 // - Make sure that properties match the virtual node – they can be mutated by user actions, such as typing into an input.
 //   `Html.Attributes` primarily uses attributes (not properties), so this shouldn’t take much time.
 // - Update event listeners’ reference to the current `eventNode`.
-function _VirtualDom_quickVisit(x, y, eventNode, tNode)
+function _VirtualDom_quickVisit(vNode, eventNode, tNode)
 {
-	switch (y.$)
+	switch (vNode.$)
 	{
 		case __2_TAGGER:
-			return _VirtualDom_quickVisit(x.__node, y.__node, function (msg, isSync) { return eventNode(y.__tagger(msg), isSync) }, tNode);
+			return _VirtualDom_quickVisit(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
 
 		case __2_THUNK:
-			return _VirtualDom_quickVisit(x.__node, y.__node, eventNode, tNode);
+			return _VirtualDom_quickVisit(vNode.__node, eventNode, tNode);
 	}
 
 	var domNode = tNode.__domNode;
 
-	switch (y.$)
+	switch (vNode.$)
 	{
 		case __2_TEXT:
 			return domNode;
 
 		case __2_NODE:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
-				_VirtualDom_quickVisit(xKids[i], yKids[i], eventNode, tNode.__children[i]);
+				_VirtualDom_quickVisit(kids[i], eventNode, tNode.__children[i]);
 			}
 			return domNode;
 
 		case __2_KEYED_NODE:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
-				var xKid = xKids[i];
-				var yKid = yKids[i];
-				_VirtualDom_quickVisit(xKid.b, yKid.b, eventNode, tNode.__children[yKid.a]);
+				var kid = kids[i];
+				_VirtualDom_quickVisit(kid.b, eventNode, tNode.__children[kid.a]);
 			}
 			return domNode;
 
 		case __2_CUSTOM:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			return domNode;
 	}
