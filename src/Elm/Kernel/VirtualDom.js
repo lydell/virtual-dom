@@ -939,13 +939,6 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 		var newHandler = events[key];
 		var oldCallback = allCallbacks[key];
 
-		if (!newHandler)
-		{
-			domNode.removeEventListener(key, oldCallback);
-			delete allCallbacks[key];
-			continue;
-		}
-
 		if (oldCallback)
 		{
 			var oldHandler = oldCallback.__handler;
