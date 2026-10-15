@@ -1944,8 +1944,13 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 				:
 			// Try to guess if the attribute comes from one of the functions
 			// implemented using `boolProperty` in `Html.Attributes`.
-			// See `Html.Attributes.spellcheck` for that exception.
-			typeof propertyValue === 'boolean' && name !== 'spellcheck'
+			// `Html.Attributes.spellcheck` and `Html.Attributes.draggable` are exceptions:
+			// `.spellcheck` and `.draggable` boolean properties exist, but the attributes
+			// aren’t boolean, they are _enumerated_ with string values like "true" and "false".
+			// Real boolean attributes have the empty string as attribute value. (Technically,
+			// you can also repeat the name as value (`disabled="disabled"`), but in practice
+			// it feels too rare to detect here – they will fall back to attributes below.)
+			typeof propertyValue === 'boolean' && value === ''
 				? A2(_VirtualDom_property, propertyName, __Json_wrap(propertyValue))
 				:
 			// Otherwise, guess that it is an attribute. The user might have used `Html.Attributes.property`,
