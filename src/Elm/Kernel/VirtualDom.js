@@ -643,18 +643,13 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 // Like `_VirtualDom_render`, but:
 // - Assumes that we have already gone through diffing.
 // - Only re-renders text nodes.
-function _VirtualDom_renderTranslated(vNode, eventNode, tNode)
+function _VirtualDom_renderTranslated(vNode, tNode)
 {
 	var tag = vNode.$;
 
-	if (tag === __2_THUNK)
+	if (tag === __2_THUNK || tag === __2_TAGGER)
 	{
-		return _VirtualDom_renderTranslated(vNode.__node, eventNode, tNode);
-	}
-
-	if (tag === __2_TAGGER)
-	{
-		return _VirtualDom_renderTranslated(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
+		return _VirtualDom_renderTranslated(vNode.__node, tNode);
 	}
 
 	if (tag === __2_TEXT)
@@ -1294,7 +1289,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
 			// - For text nodes: A new text node that isn’t inserted into the DOM.
 			// - For other nodes: The already existing DOM node. An extension
 			//   might have removed it, though, or moved it to another parent.
-			var child = _VirtualDom_renderTranslated(vNode, eventNode, tNode.__children[y.$ === __2_KEYED_NODE ? kid.a : i]);
+			var child = _VirtualDom_renderTranslated(vNode, tNode.__children[y.$ === __2_KEYED_NODE ? kid.a : i]);
 
 			if (child.parentNode === domNode)
 			{
