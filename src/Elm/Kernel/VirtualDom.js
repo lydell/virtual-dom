@@ -78,6 +78,8 @@ function _VirtualDom_moveBefore_(parent, child, reference)
 	{
 		// An extension might have removed `child`, or moved it to another parent.
 		// In such cases, `moveBefore` would throw an error.
+		// We also end up here for nodes that aren’t in the DOM yet, such as
+		// new text nodes when handling translated elements in `_VirtualDom_diffNodes`.
 		parent.insertBefore(child, reference);
 	}
 }
@@ -95,6 +97,7 @@ function _VirtualDom_moveAfter_(parent, child, reference)
 	{
 		// An extension might have removed `child`, or moved it to another parent.
 		// In such cases, `moveBefore` would throw an error.
+		// We also end up here for nodes that aren’t in the DOM yet (see `_VirtualDom_moveBefore_`).
 		parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
 	}
 }
@@ -1279,56 +1282,36 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
 	{
 		_VirtualDom_everTranslated = true;
 
-		for (var current = null, kids = y.__kids, i = kids.length - 1, j = domNode.childNodes.length - 1; i >= 0; i--)
+		// Remove all text nodes, and all font tags (most likely created by Google Translate).
+		// All our text nodes are re-created below anyway. If one of our kids is a `<font>`
+		// element, it is put back below.
+		for (var childNodes = domNode.childNodes, j = childNodes.length - 1; j >= 0; j--)
+		{
+			var current = childNodes[j];
+			if (current.nodeType === 3 || current.localName === 'font')
+			{
+				domNode.removeChild(current);
+			}
+		}
+
+		// Put our kids back in order, starting from the end. This inserts the new text nodes,
+		// re-inserts elements (re-)moved by an extension, and restores the order if an extension
+		// has shuffled our elements. `_VirtualDom_moveBefore` does nothing for kids that already
+		// are in the right place.
+		for (var reference = null, kids = y.__kids, i = kids.length - 1; i >= 0; i--)
 		{
 			var kid = kids[i];
-			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
 
 			// `child` is going to be one of:
 			// - For text nodes: A new text node that isn’t inserted into the DOM.
 			// - For other nodes: The already existing DOM node. An extension
 			//   might have removed it, though, or moved it to another parent.
-			var child = _VirtualDom_renderTranslated(vNode, tNode.__children[y.$ === __2_KEYED_NODE ? kid.a : i]);
+			var child = y.$ === __2_KEYED_NODE
+				? _VirtualDom_renderTranslated(kid.b, tNode.__children[kid.a])
+				: _VirtualDom_renderTranslated(kid, tNode.__children[i]);
 
-			if (child.parentNode === domNode)
-			{
-				// Go through the actual children of `domNode` until we hit `child`,
-				// which we just checked for sure is a child of `domNode`. We know
-				// that all “our” kids are in the correct order.
-				for (; j >= 0; j--)
-				{
-					current = domNode.childNodes[j];
-					if (current === child)
-					{
-						j--;
-						break;
-					}
-					// Any element we come across until we find `child` must be created by others,
-					// or be text nodes created by us but abandoned in `_VirtualDom_renderTranslated`.
-					// Remove all text nodes, and all font tags (most likely created by Google Translate).
-					if (current.nodeType === 3 || current.localName === 'font')
-					{
-						domNode.removeChild(current);
-					}
-				}
-			}
-			else
-			{
-				// Most likely, we are inserting a new text node here.
-				// It could also be an element (re-)moved by an extension.
-				_VirtualDom_insertBefore(domNode, child, current);
-				current = child;
-			}
-		}
-
-		// If there are more elements before our first kid, go through them as well like above.
-		for (; j >= 0; j--)
-		{
-			current = domNode.childNodes[j];
-			if (current.nodeType === 3 || current.localName === 'font')
-			{
-				domNode.removeChild(current);
-			}
+			_VirtualDom_moveBefore(domNode, child, reference);
+			reference = child;
 		}
 	}
 
