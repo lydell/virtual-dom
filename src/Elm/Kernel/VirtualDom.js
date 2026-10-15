@@ -1918,13 +1918,13 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 			// attribute; the `value` attribute maps to the `.defaultValue` property. But when serializing,
 			// the most likely way to do it is to serialize the `.value` property to the `value` attribute.
 			name === 'value'
-				? A2(_VirtualDom_property, name, value)
+				? A2(_VirtualDom_property, name, __Json_wrap(value))
 				:
 			// Try to guess if the attribute comes from one of the functions
 			// implemented using `boolProperty` in `Html.Attributes`.
 			// See `Html.Attributes.spellcheck` for that exception.
 			typeof propertyValue === 'boolean' && name !== 'spellcheck'
-				? A2(_VirtualDom_property, propertyName, propertyValue)
+				? A2(_VirtualDom_property, propertyName, __Json_wrap(propertyValue))
 				:
 			// Otherwise, guess that it is an attribute. The user might have used `Html.Attributes.property`,
 			// but there’s no way for us to know that.
@@ -1955,7 +1955,7 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 	if (node.localName === 'textarea')
 	{
 		attrList = __List_Cons(
-			A2(_VirtualDom_property, 'value', node.value),
+			A2(_VirtualDom_property, 'value', __Json_wrap(node.value)),
 			attrList
 		);
 	}
