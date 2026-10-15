@@ -1270,7 +1270,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
 	// If at least one kid was detected to have been translated (by Google Translate for example),
 	// we need to go through all kids and actual DOM node children once more. If a text node
 	// has been replaced by another with translated text, we don’t know _which_ text node it has
-	// been replace by. We have to rerender _all_ text inside the element. This has the side benefit
+	// been replaced by. We have to rerender _all_ text inside the element. This has the side benefit
 	// of increasing the likelihood of getting a well-formed sentence after the translator re-translates
 	// the text. Since different languages have different word order, it’s the best to translate
 	// whole sentences at the minimum. It’s difficult to heuristically find a sentence or paragraph
