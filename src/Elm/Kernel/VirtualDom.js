@@ -32,7 +32,7 @@ import VirtualDom exposing (toHandlerInt)
 // grep --invert-match void src/Elm/Kernel/VirtualDom.js | grep --only --extended-regexp '_{2}[0-9a-z]\w+' | awk '!visited[$0]++' >b.txt
 // # Keep only the double underscore tokens from the reference commit that still exist.
 // grep --fixed-strings --line-regexp --file=b.txt a.txt
-void { __2_TEXT: null, __text: null, __descendantsCount: null, __2_NODE: null, __tag: null, __facts: null, __kids: null, __namespace: null, __2_KEYED_NODE: null, __2_CUSTOM: null, __model: null, __render: null, __diff: null, __2_TAGGER: null, __tagger: null, __node: null, __2_THUNK: null, __refs: null, __thunk: null, __1_EVENT: null, __key: null, __value: null, __1_STYLE: null, __1_PROP: null, __1_ATTR: null, __1_ATTR_NS: null, __handler: null, __eventNode: null };
+// __2_TEXT __text __descendantsCount __2_NODE __tag __facts __kids __namespace __2_KEYED_NODE __2_CUSTOM __model __render __diff __2_TAGGER __tagger __node __2_THUNK __refs __thunk __1_EVENT __key __value __1_STYLE __1_PROP __1_ATTR __1_ATTR_NS __handler __eventNode
 
 
 
@@ -69,17 +69,38 @@ function _VirtualDom_insertAfter(parent, child, reference)
 
 function _VirtualDom_moveBefore_(parent, child, reference)
 {
-	if (!(child.parentNode === parent && child.nextSibling === reference))
+	if (child.parentNode === parent)
 	{
-		parent.moveBefore(child, reference);
+		if (child.nextSibling !== reference)
+		{
+			parent.moveBefore(child, reference);
+		}
+	}
+	else
+	{
+		// An extension might have removed `child`, or moved it to another parent.
+		// In such cases, `moveBefore` would throw an error.
+		// We also end up here for nodes that aren’t in the DOM yet, such as
+		// new text nodes when handling translated elements in `_VirtualDom_diffNodes`.
+		parent.insertBefore(child, reference);
 	}
 }
 
 function _VirtualDom_moveAfter_(parent, child, reference)
 {
-	if (!(child.parentNode === parent && child.previousSibling === reference))
+	if (child.parentNode === parent)
 	{
-		parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+		if (child.previousSibling !== reference)
+		{
+			parent.moveBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
+		}
+	}
+	else
+	{
+		// An extension might have removed `child`, or moved it to another parent.
+		// In such cases, `moveBefore` would throw an error.
+		// We also end up here for nodes that aren’t in the DOM yet (see `_VirtualDom_moveBefore_`).
+		parent.insertBefore(child, reference === null ? parent.firstChild : reference.nextSibling);
 	}
 }
 
@@ -99,7 +120,13 @@ function _VirtualDom_remove(domNode)
 	if (parentNode)
 	{
 		parentNode.removeChild(domNode);
+		// If the DOM node is a text node and its text has changed, it was translated.
+		// But I haven’t been able to come up with a case where detecting this while
+		// removing a text node is useful, so we don’t bother checking for it.
+		return false;
 	}
+	// The DOM node has been removed: If it is a text node, it was translated.
+	return domNode.nodeType === 3;
 }
 
 // A `tNode`, or “tree node”, is a tree structure that contains DOM nodes. The
@@ -425,7 +452,11 @@ function _VirtualDom_noJavaScriptOrHtmlUri(value)
 
 function _VirtualDom_noJavaScriptOrHtmlJson(value)
 {
-	return (typeof __Json_unwrap(value) === 'string' && _VirtualDom_RE_js_html.test(__Json_unwrap(value)))
+	return (
+		(typeof __Json_unwrap(value) === 'string' && _VirtualDom_RE_js_html.test(__Json_unwrap(value)))
+		||
+		(Array.isArray(__Json_unwrap(value)) && _VirtualDom_RE_js_html.test(String(__Json_unwrap(value))))
+	)
 		? __Json_wrap(
 			/**__PROD/''//*//**__DEBUG/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		) : value;
@@ -562,7 +593,7 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 
 	if (tag === __2_TAGGER)
 	{
-		return _VirtualDom_render(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) }, tNode);
+		return _VirtualDom_render(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
 	}
 
 	if (tag === __2_TEXT)
@@ -623,18 +654,13 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 // Like `_VirtualDom_render`, but:
 // - Assumes that we have already gone through diffing.
 // - Only re-renders text nodes.
-function _VirtualDom_renderTranslated(vNode, eventNode, tNode)
+function _VirtualDom_renderTranslated(vNode, tNode)
 {
 	var tag = vNode.$;
 
-	if (tag === __2_THUNK)
+	if (tag === __2_THUNK || tag === __2_TAGGER)
 	{
-		return _VirtualDom_renderTranslated(vNode.__node, eventNode, tNode);
-	}
-
-	if (tag === __2_TAGGER)
-	{
-		return _VirtualDom_renderTranslated(vNode.__node, function (msg) { return eventNode(vNode.__tagger(msg)) }, tNode);
+		return _VirtualDom_renderTranslated(vNode.__node, tNode);
 	}
 
 	if (tag === __2_TEXT)
@@ -882,7 +908,7 @@ function _VirtualDom_applyAttrsNS(domNode, prevNsAttrs, nsAttrs)
 		}
 		else if (previous.__namespace !== namespace)
 		{
-			domNode.removeAttributeNS(previous.__namespace, key);
+			_VirtualDom_removeAttributeNS(domNode, previous.__namespace, key);
 			domNode.setAttributeNS(namespace, key, value);
 		}
 		else if (previous.__value !== value)
@@ -899,9 +925,17 @@ function _VirtualDom_removeAttrsNS(domNode, prevNsAttrs, nsAttrs)
 	{
 		if (!(key in nsAttrs))
 		{
-			domNode.removeAttributeNS(prevNsAttrs[key].__namespace, key);
+			_VirtualDom_removeAttributeNS(domNode, prevNsAttrs[key].__namespace, key);
 		}
 	}
+}
+
+
+// `setAttributeNS` takes a qualified name (like `xlink:href`), but
+// `removeAttributeNS` takes a local name (like `href`).
+function _VirtualDom_removeAttributeNS(domNode, namespace, key)
+{
+	domNode.removeAttributeNS(namespace, key.slice(key.indexOf(':') + 1));
 }
 
 
@@ -917,13 +951,6 @@ function _VirtualDom_applyEvents(domNode, eventNode, events)
 	{
 		var newHandler = events[key];
 		var oldCallback = allCallbacks[key];
-
-		if (!newHandler)
-		{
-			domNode.removeEventListener(key, oldCallback);
-			delete allCallbacks[key];
-			continue;
-		}
 
 		if (oldCallback)
 		{
@@ -1043,7 +1070,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 	if (x === y)
 	{
 		return {
-			__domNode: _VirtualDom_quickVisit(x, y, eventNode, tNode),
+			__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
 			__translated: false,
 			__reinsert: false
 		};
@@ -1061,7 +1088,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 
 	if (y.$ === __2_TAGGER)
 	{
-		return _VirtualDom_diffHelp(x, y.__node, function (msg) { return eventNode(y.__tagger(msg)) }, tNode);
+		return _VirtualDom_diffHelp(x, y.__node, function (msg, isSync) { return eventNode(y.__tagger(msg), isSync) }, tNode);
 	}
 
 	if (x.$ === __2_THUNK)
@@ -1084,7 +1111,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 				// `eventNode`, and to increase and reset counters. This is
 				// cheaper than calling `view`, diffing and rendering at least.
 				return {
-					__domNode: _VirtualDom_quickVisit(x, y, eventNode, tNode),
+					__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
 					__translated: false,
 					__reinsert: false
 				};
@@ -1196,46 +1223,45 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 // - Make sure that properties match the virtual node – they can be mutated by user actions, such as typing into an input.
 //   `Html.Attributes` primarily uses attributes (not properties), so this shouldn’t take much time.
 // - Update event listeners’ reference to the current `eventNode`.
-function _VirtualDom_quickVisit(x, y, eventNode, tNode)
+function _VirtualDom_quickVisit(vNode, eventNode, tNode)
 {
-	switch (y.$)
+	switch (vNode.$)
 	{
 		case __2_TAGGER:
-			return _VirtualDom_quickVisit(x.__node, y.__node, function (msg) { return eventNode(y.__tagger(msg)) }, tNode);
+			return _VirtualDom_quickVisit(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
 
 		case __2_THUNK:
-			return _VirtualDom_quickVisit(x.__node, y.__node, eventNode, tNode);
+			return _VirtualDom_quickVisit(vNode.__node, eventNode, tNode);
 	}
 
 	var domNode = tNode.__domNode;
 
-	switch (y.$)
+	switch (vNode.$)
 	{
 		case __2_TEXT:
 			return domNode;
 
 		case __2_NODE:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
-				_VirtualDom_quickVisit(xKids[i], yKids[i], eventNode, tNode.__children[i]);
+				_VirtualDom_quickVisit(kids[i], eventNode, tNode.__children[i]);
 			}
 			return domNode;
 
 		case __2_KEYED_NODE:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
-			for (var xKids = x.__kids, yKids = y.__kids, i = 0; i < yKids.length; i++)
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
-				var xKid = xKids[i];
-				var yKid = yKids[i];
-				_VirtualDom_quickVisit(xKid.b, yKid.b, eventNode, tNode.__children[yKid.a]);
+				var kid = kids[i];
+				_VirtualDom_quickVisit(kid.b, eventNode, tNode.__children[kid.a]);
 			}
 			return domNode;
 
 		case __2_CUSTOM:
-			_VirtualDom_applyProps(domNode, y.__facts);
+			_VirtualDom_applyProps(domNode, vNode.__facts);
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			return domNode;
 	}
@@ -1257,7 +1283,7 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
 	// If at least one kid was detected to have been translated (by Google Translate for example),
 	// we need to go through all kids and actual DOM node children once more. If a text node
 	// has been replaced by another with translated text, we don’t know _which_ text node it has
-	// been replace by. We have to rerender _all_ text inside the element. This has the side benefit
+	// been replaced by. We have to rerender _all_ text inside the element. This has the side benefit
 	// of increasing the likelihood of getting a well-formed sentence after the translator re-translates
 	// the text. Since different languages have different word order, it’s the best to translate
 	// whole sentences at the minimum. It’s difficult to heuristically find a sentence or paragraph
@@ -1266,56 +1292,36 @@ function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
 	{
 		_VirtualDom_everTranslated = true;
 
-		for (var current = null, kids = y.__kids, i = kids.length - 1, j = domNode.childNodes.length - 1; i >= 0; i--)
+		// Remove all text nodes, and all font tags (most likely created by Google Translate).
+		// All our text nodes are re-created below anyway. If one of our kids is a `<font>`
+		// element, it is put back below.
+		for (var childNodes = domNode.childNodes, j = childNodes.length - 1; j >= 0; j--)
+		{
+			var current = childNodes[j];
+			if (current.nodeType === 3 || current.localName === 'font')
+			{
+				domNode.removeChild(current);
+			}
+		}
+
+		// Put our kids back in order, starting from the end. This inserts the new text nodes,
+		// re-inserts elements (re-)moved by an extension, and restores the order if an extension
+		// has shuffled our elements. `_VirtualDom_moveBefore` does nothing for kids that already
+		// are in the right place.
+		for (var reference = null, kids = y.__kids, i = kids.length - 1; i >= 0; i--)
 		{
 			var kid = kids[i];
-			var vNode = y.$ === __2_KEYED_NODE ? kid.b : kid;
 
 			// `child` is going to be one of:
 			// - For text nodes: A new text node that isn’t inserted into the DOM.
 			// - For other nodes: The already existing DOM node. An extension
 			//   might have removed it, though, or moved it to another parent.
-			var child = _VirtualDom_renderTranslated(vNode, eventNode, tNode.__children[y.$ === __2_KEYED_NODE ? kid.a : i]);
+			var child = y.$ === __2_KEYED_NODE
+				? _VirtualDom_renderTranslated(kid.b, tNode.__children[kid.a])
+				: _VirtualDom_renderTranslated(kid, tNode.__children[i]);
 
-			if (child.parentNode === domNode)
-			{
-				// Go through the actual children of `domNode` until we hit `child`,
-				// which we just checked for sure is a child of `domNode`. We know
-				// that all “our” kids are in the correct order.
-				for (; j >= 0; j--)
-				{
-					current = domNode.childNodes[j];
-					if (current === child)
-					{
-						j--;
-						break;
-					}
-					// Any element we come across until we find `child` must be created by others,
-					// or be text nodes created by us but abandoned in `_VirtualDom_renderTranslated`.
-					// Remove all text nodes, and all font tags (most likely created by Google Translate).
-					if (current.nodeType === 3 || current.localName === 'font')
-					{
-						domNode.removeChild(current);
-					}
-				}
-			}
-			else
-			{
-				// Most likely, we are inserting a new text node here.
-				// It could also be an element (re-)moved by an extension.
-				_VirtualDom_insertBefore(domNode, child, current);
-				current = child;
-			}
-		}
-
-		// If there are more elements before our first kid, go through them as well like above.
-		for (; j >= 0; j--)
-		{
-			current = domNode.childNodes[j];
-			if (current.nodeType === 3 || current.localName === 'font')
-			{
-				domNode.removeChild(current);
-			}
+			_VirtualDom_moveBefore(domNode, child, reference);
+			reference = child;
 		}
 	}
 
@@ -1375,7 +1381,11 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 	{
 		for (var i = yLen; i < xLen; i++)
 		{
-			_VirtualDom_remove(tNode.__children[i].__domNode);
+			var removedTranslated = _VirtualDom_remove(tNode.__children[i].__domNode);
+			if (removedTranslated)
+			{
+				translated = true;
+			}
 			delete tNode.__children[i];
 		}
 	}
@@ -1486,7 +1496,11 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			}
 			else
 			{
-				_VirtualDom_remove(tNode.__children[xKey].__domNode);
+				var removedTranslated = _VirtualDom_remove(tNode.__children[xKey].__domNode);
+				if (removedTranslated)
+				{
+					translated = true;
+				}
 				delete tNode.__children[xKey];
 				xIndexLower++;
 			}
@@ -1536,7 +1550,11 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			}
 			else
 			{
-				_VirtualDom_remove(tNode.__children[xKey].__domNode);
+				var removedTranslated = _VirtualDom_remove(tNode.__children[xKey].__domNode);
+				if (removedTranslated)
+				{
+					translated = true;
+				}
 				delete tNode.__children[xKey];
 				xIndexUpper--;
 			}
@@ -1637,8 +1655,12 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 		var xKid = xKids[xIndexLower];
 		var xKey = xKid.a;
 		if (!(xKey in yKidsMap)) {
-			_VirtualDom_remove(tNode.__children[xKid.a].__domNode);
-			delete tNode.__children[xKid.a];
+			var removedTranslated = _VirtualDom_remove(tNode.__children[xKey].__domNode);
+			if (removedTranslated)
+			{
+				translated = true;
+			}
+			delete tNode.__children[xKey];
 		}
 	}
 
@@ -1677,6 +1699,9 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode, tNode)
 	var domNode = tNode.__domNode;
 	var parentNode = domNode.parentNode;
 	var isTextNode = domNode.nodeType === 3;
+	// Reset children before rendering afresh. Otherwise we might keep references to old children
+	// if the new render results in fewer children.
+	tNode.__children = Object.create(null);
 	var newNode = _VirtualDom_render(y, eventNode, tNode);
 
 	// An extension might have removed the element. In this case, we are redrawing because `x` and `y`
@@ -1901,13 +1926,18 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 			// attribute; the `value` attribute maps to the `.defaultValue` property. But when serializing,
 			// the most likely way to do it is to serialize the `.value` property to the `value` attribute.
 			name === 'value'
-				? A2(_VirtualDom_property, name, value)
+				? A2(_VirtualDom_property, name, __Json_wrap(value))
 				:
 			// Try to guess if the attribute comes from one of the functions
 			// implemented using `boolProperty` in `Html.Attributes`.
-			// See `Html.Attributes.spellcheck` for that exception.
-			typeof propertyValue === 'boolean' && name !== 'spellcheck'
-				? A2(_VirtualDom_property, propertyName, propertyValue)
+			// `Html.Attributes.spellcheck` and `Html.Attributes.draggable` are exceptions:
+			// `.spellcheck` and `.draggable` boolean properties exist, but the attributes
+			// aren’t boolean, they are _enumerated_ with string values like "true" and "false".
+			// Real boolean attributes have the empty string as attribute value. (Technically,
+			// you can also repeat the name as value (`disabled="disabled"`), but in practice
+			// it feels too rare to detect here – they will fall back to attributes below.)
+			typeof propertyValue === 'boolean' && value === ''
+				? A2(_VirtualDom_property, propertyName, __Json_wrap(propertyValue))
 				:
 			// Otherwise, guess that it is an attribute. The user might have used `Html.Attributes.property`,
 			// but there’s no way for us to know that.
@@ -1938,7 +1968,7 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 	if (node.localName === 'textarea')
 	{
 		attrList = __List_Cons(
-			A2(_VirtualDom_property, 'value', node.value),
+			A2(_VirtualDom_property, 'value', __Json_wrap(node.value)),
 			attrList
 		);
 	}
