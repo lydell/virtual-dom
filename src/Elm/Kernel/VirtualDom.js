@@ -182,6 +182,11 @@ var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 		/**__DEBUG/
 		app.hotReload = function(hotReloadData)
 		{
+			// In case `detachView` has been called. Then we shouldn’t update the node anymore.
+			if (stopped)
+			{
+				return;
+			}
 			node = _VirtualDom_applyPatches(node, virtualNode, hotReloadData.__$virtualNode, sendToApp);
 			virtualNode = hotReloadData.__$virtualNode;
 		};
