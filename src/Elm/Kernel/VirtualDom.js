@@ -2173,22 +2173,17 @@ function _VirtualDom_removeAllEventListenersHelp(tNode)
 }
 
 // Used by `_Debugger_document` to remove the corner when shutting down.
-function _VirtualDom_removeLastElmChild(rootDomNode)
+function _VirtualDom_removeElmChild(rootDomNode, index)
 {
 	var tNode = rootDomNode.elmTree;
 	var children = tNode.__children;
-	var childNodes = rootDomNode.childNodes;
-	for (var i = childNodes.length - 1; i >= 0; i--)
+	var domNode = children[index].__domNode;
+
+	// Use the logical child index, since an extension or script might have
+	// moved the corner within the body, moved it elsewhere, or removed it.
+	if (domNode.parentNode)
 	{
-		var childDomNode = childNodes[i];
-		for (var key in children)
-		{
-			if (childDomNode === children[key].__domNode)
-			{
-				rootDomNode.removeChild(childDomNode);
-				delete children[key];
-				return;
-			}
-		}
+		domNode.parentNode.removeChild(domNode);
 	}
+	delete children[index];
 }
