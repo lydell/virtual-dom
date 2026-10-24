@@ -162,17 +162,49 @@ var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 		node = nextNode;
 
 		var stopped = false;
-		var detachView = function()
+		var drawing = false;
+		var detached = false;
+		var detachCallbacks = [];
+		var detachView = function(callback)
 		{
-			// Make a second call to `app.detachView` do nothing.
+			if (detached)
+			{
+				if (callback)
+				{
+					callback(node);
+				}
+				return;
+			}
+
+			if (callback)
+			{
+				detachCallbacks.push(callback);
+			}
+
 			if (stopped)
 			{
-				return node;
+				return;
 			}
 			stopped = true;
-			_VirtualDom_removeAllEventListeners(node);
-			return node;
+
+			// A custom element can request detachment while hot reload is patching.
+			if (!drawing)
+			{
+				didDetachView();
+			}
 		};
+
+		function didDetachView()
+		{
+			_VirtualDom_removeAllEventListeners(node);
+			detached = true;
+			var callbacks = detachCallbacks;
+			detachCallbacks = [];
+			for (var i = 0; i < callbacks.length; i++)
+			{
+				callbacks[i](node);
+			}
+		}
 
 		var app = {
 			detachView: detachView,
@@ -187,8 +219,15 @@ var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 			{
 				return;
 			}
+			drawing = true;
 			node = _VirtualDom_applyPatches(node, virtualNode, hotReloadData.__$virtualNode, sendToApp);
 			virtualNode = hotReloadData.__$virtualNode;
+			drawing = false;
+
+			if (stopped)
+			{
+				didDetachView();
+			}
 		};
 		//*/
 
@@ -2173,10 +2212,11 @@ function _VirtualDom_removeAllEventListenersHelp(tNode)
 }
 
 // Used by `_Debugger_document` to remove the corner when shutting down.
-function _VirtualDom_removeElmChild(rootDomNode, index)
+function _VirtualDom_removeLastElmChild(rootDomNode, virtualNode)
 {
 	var tNode = rootDomNode.elmTree;
 	var children = tNode.__children;
+	var index = virtualNode.__kids.length - 1;
 	var domNode = children[index].__domNode;
 
 	// Use the logical child index, since an extension or script might have
