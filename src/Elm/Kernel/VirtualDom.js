@@ -141,23 +141,106 @@ function _VirtualDom_createTNode(domNode)
 	};
 }
 
-var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
+var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 {
 	// NOTE: this function needs __Platform_export available to work
 
-	/**__PROD/
-	var node = args['node'];
-	//*/
+	var init = function(args)
+	{
+		/**__PROD/
+		var node = args['node'];
+		//*/
+		/**__DEBUG/
+		var node = args && args['node'] ? args['node'] : __Debug_crash(0);
+		//*/
+
+		var sendToApp = function() {};
+		var tNode = _VirtualDom_createTNode(undefined);
+		var nextNode = _VirtualDom_render(virtualNode, sendToApp, tNode);
+		nextNode.elmTree = tNode;
+		node.parentNode.replaceChild(nextNode, node);
+		node = nextNode;
+
+		var stopped = false;
+		var drawing = false;
+		var detached = false;
+		var detachCallbacks = [];
+		var detachView = function(callback)
+		{
+			if (detached)
+			{
+				if (callback)
+				{
+					callback(node);
+				}
+				return;
+			}
+
+			if (callback)
+			{
+				detachCallbacks.push(callback);
+			}
+
+			if (stopped)
+			{
+				return;
+			}
+			stopped = true;
+
+			// A custom element can request detachment while hot reload is patching.
+			if (!drawing)
+			{
+				didDetachView();
+			}
+		};
+
+		function didDetachView()
+		{
+			_VirtualDom_removeAllEventListeners(node);
+			detached = true;
+			var callbacks = detachCallbacks;
+			detachCallbacks = [];
+			for (var i = 0; i < callbacks.length; i++)
+			{
+				callbacks[i](node);
+			}
+		}
+
+		var app = {
+			detachView: detachView,
+			stop: detachView
+		};
+
+		/**__DEBUG/
+		app.hotReload = function(hotReloadData)
+		{
+			// In case `detachView` has been called. Then we shouldn’t update the node anymore.
+			if (stopped)
+			{
+				return;
+			}
+			drawing = true;
+			node = _VirtualDom_applyPatches(node, virtualNode, hotReloadData.__$virtualNode, sendToApp);
+			virtualNode = hotReloadData.__$virtualNode;
+			drawing = false;
+
+			if (stopped)
+			{
+				didDetachView();
+			}
+		};
+		//*/
+
+		return app;
+	};
+
 	/**__DEBUG/
-	var node = args && args['node'] ? args['node'] : __Debug_crash(0);
+	init.hotReloadData = {
+		__$virtualNode: virtualNode
+	};
 	//*/
 
-	node.parentNode.replaceChild(
-		_VirtualDom_render(virtualNode, function() {}, _VirtualDom_createTNode(undefined)),
-		node
-	);
-
-	return {};
+	return init;
 });
 
 
@@ -617,7 +700,9 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 
 	if (_VirtualDom_divertHrefToApp && vNode.__tag == 'a')
 	{
-		domNode.addEventListener('click', _VirtualDom_divertHrefToApp(domNode));
+		var listener = _VirtualDom_divertHrefToApp(domNode);
+		domNode.elmAf = listener;
+		domNode.addEventListener('click', listener);
 	}
 
 	_VirtualDom_applyFacts(domNode, eventNode, {}, vNode.__facts);
@@ -1997,7 +2082,9 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 
 		if (_VirtualDom_divertHrefToApp && node.localName === 'a')
 		{
-			node.addEventListener('click', _VirtualDom_divertHrefToApp(node));
+			var listener = _VirtualDom_divertHrefToApp(node);
+			node.elmAf = listener;
+			node.addEventListener('click', listener);
 		}
 	}
 
@@ -2079,4 +2166,64 @@ function _VirtualDom_dekey(keyedNode, tNode)
 		__namespace: keyedNode.__namespace,
 		__descendantsCount: keyedNode.__descendantsCount
 	};
+}
+
+function _VirtualDom_removeAllEventListeners(rootDomNode)
+{
+	var tNode = rootDomNode.elmTree;
+
+	// Allow mounting another Elm app on this DOM node.
+	delete rootDomNode.elmTree;
+
+	_VirtualDom_removeAllEventListenersHelp(tNode);
+}
+
+function _VirtualDom_removeAllEventListenersHelp(tNode)
+{
+	var domNode = tNode.__domNode;
+	var children = tNode.__children;
+
+	// Allow the DOM nodes to be virtualized by another Elm app.
+	if (domNode.nodeType === 1)
+	{
+		domNode.setAttribute(_VirtualDom_markerProperty, '');
+	}
+
+	if (domNode.elmAf)
+	{
+		domNode.removeEventListener('click', domNode.elmAf);
+		delete domNode.elmAf;
+	}
+
+	var allCallbacks = domNode.elmFs;
+	if (allCallbacks)
+	{
+		for (var key in allCallbacks)
+		{
+			domNode.removeEventListener(key, allCallbacks[key]);
+		}
+		delete domNode.elmFs;
+	}
+
+	for (var key in children)
+	{
+		_VirtualDom_removeAllEventListenersHelp(children[key]);
+	}
+}
+
+// Used by `_Debugger_document` to remove the corner when shutting down.
+function _VirtualDom_removeLastElmChild(rootDomNode, virtualNode)
+{
+	var tNode = rootDomNode.elmTree;
+	var children = tNode.__children;
+	var index = virtualNode.__kids.length - 1;
+	var domNode = children[index].__domNode;
+
+	// Use the logical child index, since an extension or script might have
+	// moved the corner within the body, moved it elsewhere, or removed it.
+	if (domNode.parentNode)
+	{
+		domNode.parentNode.removeChild(domNode);
+	}
+	delete children[index];
 }
