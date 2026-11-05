@@ -137,8 +137,80 @@ function _VirtualDom_createTNode(domNode)
 {
 	return {
 		__domNode: domNode,
-		__children: Object.create(null)
+		__children: Object.create(null),
+		// See `_VirtualDom_updateThunkEventNode`.
+		__thunkEventNode: undefined
 	};
+}
+
+// Lazy nodes can avoid diffing the entire vdom trees if the inputs are unchanged.
+// But one catch is `Html.map`. It provides a mapping function that the event
+// listeners inside the lazy nodes need. `Html.map` wraps the `eventNode` function
+// in a lambda also calling the mapping function. When we reach a lazy node,
+// `eventNode` might be a function wrapped by `Html.map` multiple times. If only
+// we could mutate the `eventNode` function given to us last render (that the
+// elements with event listeners use) … turns out we can! And it’s the same trick
+// as `_VirtualDom_makeCallback` uses: Create a function that just calls another
+// function at a mutable property. Then we can mutate that property here.
+// This mutable function is called a “thunk `eventNode`”.
+//
+// Where to store the thunk `eventNode`, though? The first thought might be to
+// store it on the virtual node. But it can be used in multiple spots in the
+// tree, which all have different `Html.map` parents. The solution is to store
+// it on the `tNode`, since it corresponds to one single spot in the tree.
+// There’s just one wrinkle: We don’t create a `tNode` for every virtual node.
+// Only for the ones that result in a DOM element. Lazy nodes and `Html.map`
+// don’t. That means that for `lazy > map > lazy` we’re still at the same `tNode`
+// when we come to the second lazy node. Both lazy nodes want to store their
+// thunk `eventNode` in the same spot. We could use an array. But then we have
+// to allocate an array for every `tNode`, even though nested lazy nodes in this
+// way is uncommon. Instead, we pass down the outer thunk `eventNode` until we
+// reach an element node. So in `lazy > map > lazy`, the second lazy gets the
+// thunk `eventNode` from the first lazy, and stores its own thunk `eventNode`
+// on the first one’s `.__thunkEventNode`. It’s like a little linked list,
+// optimized for the common case of having just one lazy node per `tNode`.
+// When _calling_ the thunk `eventNode`s we don’t care about `.__thunkEventNode`
+// – that’s just a hacky way of storing them, so we can mutate them when diffing.
+function _VirtualDom_updateThunkEventNode(tNode, outerThunkEventNode, eventNode)
+{
+	var parent = outerThunkEventNode || tNode;
+	var existingThunkEventNode = parent.__thunkEventNode;
+	if (existingThunkEventNode)
+	{
+		existingThunkEventNode.__eventNode = eventNode;
+		return existingThunkEventNode;
+	}
+	return parent.__thunkEventNode = _VirtualDom_createThunkEventNode(eventNode);
+}
+
+// Called when reaching the node that results in a DOM element for `tNode`
+// (after any lazy node and `Html.map`). Thunk `eventNode`s beyond
+// `outerThunkEventNode` belong to deeper lazy nodes that are now gone.
+// Forget them, since their `.__eventNode` can hold on to stuff preventing
+// garbage collection.
+function _VirtualDom_forgetThunkEventNodes(tNode, outerThunkEventNode)
+{
+	var parent = outerThunkEventNode || tNode;
+	parent.__thunkEventNode = undefined;
+}
+
+// Similar to `_VirtualDom_makeCallback`, this creates a function
+// “which can be mutated”: All it does is call another function
+// on a mutable property, allowing us to swap out the actual
+// function later.
+function _VirtualDom_createThunkEventNode(eventNode)
+{
+	function thunkEventNode(msg, isSync)
+	{
+		return thunkEventNode.__eventNode(msg, isSync);
+	}
+
+	thunkEventNode.__eventNode = eventNode;
+
+	// See `_VirtualDom_updateThunkEventNode`:
+	thunkEventNode.__thunkEventNode = undefined;
+
+	return thunkEventNode;
 }
 
 var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
@@ -156,7 +228,7 @@ var _VirtualDom_init = F3(function(virtualNode, flagDecoder, debugMetadata)
 
 		var sendToApp = function() {};
 		var tNode = _VirtualDom_createTNode(undefined);
-		var nextNode = _VirtualDom_render(virtualNode, sendToApp, tNode);
+		var nextNode = _VirtualDom_render(virtualNode, sendToApp, tNode, undefined);
 		nextNode.elmTree = tNode;
 		node.parentNode.replaceChild(nextNode, node);
 		node = nextNode;
@@ -279,7 +351,8 @@ var _VirtualDom_nodeNS = F2(function(namespace, tag)
 			// Unused, only exists for backwards compatibility with:
 			// https://github.com/elm-explorations/test/blob/9669a27d84fc29175364c7a60d5d700771a2801e/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L279
 			// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/src/Test/Html/Internal/ElmHtml/InternalTypes.elm#L281
-			__descendantsCount: 0
+			__descendantsCount: 0,
+			__hasProps: __3_UNSET
 		};
 	});
 });
@@ -324,7 +397,8 @@ var _VirtualDom_keyedNodeNS = F2(function(namespace, tag)
 			// https://github.com/dillonkearns/elm-pages/blob/fa1d0347016e20917b412de5c3657c2e6e095087/generator/src/build.js#L675
 			__kidsMap: kidsMap,
 			__namespace: namespace,
-			__descendantsCount: 0 // See _VirtualDom_nodeNS.
+			__descendantsCount: 0, // See _VirtualDom_nodeNS.
+			__hasProps: __3_UNSET
 		};
 	});
 });
@@ -344,7 +418,8 @@ function _VirtualDom_custom(factList, model, render, diff)
 		__facts: _VirtualDom_organizeFacts(factList),
 		__model: model,
 		__render: render,
-		__diff: diff
+		__diff: diff,
+		__hasProps: __3_UNSET
 	};
 }
 
@@ -663,18 +738,19 @@ function _VirtualDom_addClass(object, key, newClass)
 // RENDER
 
 
-function _VirtualDom_render(vNode, eventNode, tNode)
+function _VirtualDom_render(vNode, eventNode, tNode, outerThunkEventNode)
 {
 	var tag = vNode.$;
 
 	if (tag === __2_THUNK)
 	{
-		return _VirtualDom_render(vNode.__node || (vNode.__node = vNode.__thunk()), eventNode, tNode);
+		var thunkEventNode = _VirtualDom_updateThunkEventNode(tNode, outerThunkEventNode, eventNode);
+		return _VirtualDom_render(vNode.__node || (vNode.__node = vNode.__thunk()), thunkEventNode, tNode, thunkEventNode);
 	}
 
 	if (tag === __2_TAGGER)
 	{
-		return _VirtualDom_render(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
+		return _VirtualDom_render(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode, outerThunkEventNode);
 	}
 
 	if (tag === __2_TEXT)
@@ -712,7 +788,7 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 		for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 		{
 			var childTNode = _VirtualDom_createTNode(undefined);
-			var childDomNode = _VirtualDom_render(kids[i], eventNode, childTNode);
+			var childDomNode = _VirtualDom_render(kids[i], eventNode, childTNode, undefined);
 			tNode.__children[i] = childTNode;
 			_VirtualDom_appendChild(domNode, childDomNode);
 		}
@@ -723,7 +799,7 @@ function _VirtualDom_render(vNode, eventNode, tNode)
 		{
 			var kid = kids[i];
 			var childTNode = _VirtualDom_createTNode(undefined);
-			var childDomNode = _VirtualDom_render(kid.b, eventNode, childTNode);
+			var childDomNode = _VirtualDom_render(kid.b, eventNode, childTNode, undefined);
 			tNode.__children[kid.a] = childTNode;
 			_VirtualDom_appendChild(domNode, childDomNode);
 		}
@@ -884,8 +960,11 @@ function _VirtualDom_removeStyles(domNode, prevStyles, styles)
 
 // APPLY PROPS
 
+// Returns whether there were any properties.
 function _VirtualDom_applyProps(domNode, props)
 {
+	var hasProps = false;
+
 	for (var key in props)
 	{
 		// See `_VirtualDom_applyFacts` and `_VirtualDom_markerProperty` for why we need to filter these.
@@ -894,6 +973,7 @@ function _VirtualDom_applyProps(domNode, props)
 			continue;
 		}
 
+		hasProps = true;
 		var value = props[key];
 		// `value`, `checked`, `selected` and `selectedIndex` can all change via
 		// user interactions, so for those it’s important to compare to the
@@ -908,6 +988,8 @@ function _VirtualDom_applyProps(domNode, props)
 			domNode[key] = value;
 		}
 	}
+
+	return hasProps;
 }
 
 
@@ -1148,12 +1230,12 @@ function _VirtualDom_diff(_x, y)
 	return y;
 }
 
-function _VirtualDom_diffHelp(x, y, eventNode, tNode)
+function _VirtualDom_diffHelp(x, y, eventNode, tNode, outerThunkEventNode)
 {
 	if (x === y)
 	{
 		return {
-			__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
+			__domNode: _VirtualDom_applyPropsAndEventsDeep(y, eventNode, tNode, outerThunkEventNode),
 			__translated: false,
 			__reinsert: false
 		};
@@ -1171,7 +1253,7 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 
 	if (y.$ === __2_TAGGER)
 	{
-		return _VirtualDom_diffHelp(x, y.__node, function (msg, isSync) { return eventNode(y.__tagger(msg), isSync) }, tNode);
+		return _VirtualDom_diffHelp(x, y.__node, function (msg, isSync) { return eventNode(y.__tagger(msg), isSync) }, tNode, outerThunkEventNode);
 	}
 
 	if (x.$ === __2_THUNK)
@@ -1189,29 +1271,29 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 			if (same)
 			{
 				y.__node = x.__node;
-				// We still need to visit every node inside the lazy node, to
-				// make sure that the event listeners get the current
-				// `eventNode`, and to increase and reset counters. This is
-				// cheaper than calling `view`, diffing and rendering at least.
 				return {
-					__domNode: _VirtualDom_quickVisit(y, eventNode, tNode),
+					__domNode: _VirtualDom_applyPropsAndEventsDeep(y, eventNode, tNode, outerThunkEventNode),
 					__translated: false,
 					__reinsert: false
 				};
 			}
 			y.__node = y.__thunk();
-			return _VirtualDom_diffHelp(x.__node, y.__node, eventNode, tNode);
+			var thunkEventNode = _VirtualDom_updateThunkEventNode(tNode, outerThunkEventNode, eventNode);
+			return _VirtualDom_diffHelp(x.__node, y.__node, thunkEventNode, tNode, thunkEventNode);
 		}
 		else
 		{
-			return _VirtualDom_diffHelp(x.__node, y, eventNode, tNode);
+			return _VirtualDom_diffHelp(x.__node, y, eventNode, tNode, outerThunkEventNode);
 		}
 	}
 
 	if (y.$ === __2_THUNK)
 	{
-		return _VirtualDom_diffHelp(x, y.__node || (y.__node = y.__thunk()), eventNode, tNode);
+		var thunkEventNode = _VirtualDom_updateThunkEventNode(tNode, outerThunkEventNode, eventNode);
+		return _VirtualDom_diffHelp(x, y.__node || (y.__node = y.__thunk()), thunkEventNode, tNode, thunkEventNode);
 	}
+
+	_VirtualDom_forgetThunkEventNodes(tNode, outerThunkEventNode);
 
 	var domNode = tNode.__domNode;
 
@@ -1306,16 +1388,23 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode)
 // - Make sure that properties match the virtual node – they can be mutated by user actions, such as typing into an input.
 //   `Html.Attributes` primarily uses attributes (not properties), so this shouldn’t take much time.
 // - Update event listeners’ reference to the current `eventNode`.
-function _VirtualDom_quickVisit(vNode, eventNode, tNode)
+function _VirtualDom_applyPropsAndEventsDeep(vNode, eventNode, tNode, outerThunkEventNode)
 {
 	switch (vNode.$)
 	{
 		case __2_TAGGER:
-			return _VirtualDom_quickVisit(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode);
+			return _VirtualDom_applyPropsAndEventsDeep(vNode.__node, function (msg, isSync) { return eventNode(vNode.__tagger(msg), isSync) }, tNode, outerThunkEventNode);
 
 		case __2_THUNK:
-			return _VirtualDom_quickVisit(vNode.__node, eventNode, tNode);
+			// For lazy nodes, we can avoid visiting most of the subtree.
+			// Event listeners are updated by a clever mutation trick in `_VirtualDom_updateThunkEventNode`.
+			// Properties are updated quickly and can be skipped sometimes in `_VirtualDom_applyPropsDeep`.
+			_VirtualDom_updateThunkEventNode(tNode, outerThunkEventNode, eventNode);
+			_VirtualDom_applyPropsDeep(vNode.__node, tNode);
+			return tNode.__domNode;
 	}
+
+	_VirtualDom_forgetThunkEventNodes(tNode, outerThunkEventNode);
 
 	var domNode = tNode.__domNode;
 
@@ -1329,7 +1418,7 @@ function _VirtualDom_quickVisit(vNode, eventNode, tNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
-				_VirtualDom_quickVisit(kids[i], eventNode, tNode.__children[i]);
+				_VirtualDom_applyPropsAndEventsDeep(kids[i], eventNode, tNode.__children[i], undefined);
 			}
 			return domNode;
 
@@ -1339,7 +1428,7 @@ function _VirtualDom_quickVisit(vNode, eventNode, tNode)
 			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
 			{
 				var kid = kids[i];
-				_VirtualDom_quickVisit(kid.b, eventNode, tNode.__children[kid.a]);
+				_VirtualDom_applyPropsAndEventsDeep(kid.b, eventNode, tNode.__children[kid.a], undefined);
 			}
 			return domNode;
 
@@ -1348,6 +1437,64 @@ function _VirtualDom_quickVisit(vNode, eventNode, tNode)
 			_VirtualDom_lazyUpdateEvents(domNode, eventNode);
 			return domNode;
 	}
+}
+
+// Like `_VirtualDom_applyPropsAndEventsDeep`, but only for properties, and only
+// visiting subtrees that actually have any properties.
+// `Html.Attributes` primarily uses attributes (not properties), so it makes
+// sense checking for this to avoid as much work as possible.
+// This caches if the node itself or kids have any properties at all, to
+// avoid work next time.
+function _VirtualDom_applyPropsDeep(vNode, tNode)
+{
+	switch (vNode.$)
+	{
+		case __2_TAGGER:
+		case __2_THUNK:
+			return _VirtualDom_applyPropsDeep(vNode.__node, tNode);
+
+		case __2_TEXT:
+			return false;
+	}
+
+	var hasProps = vNode.__hasProps;
+
+	if (hasProps === __3_NO_PROPS)
+	{
+		return false;
+	}
+
+	var hasOwnProps = hasProps !== __3_DEEP_PROPS && _VirtualDom_applyProps(tNode.__domNode, vNode.__facts);
+	var hasDeepProps = false;
+
+	switch (vNode.$)
+	{
+		case __2_NODE:
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
+			{
+				if (_VirtualDom_applyPropsDeep(kids[i], tNode.__children[i]))
+				{
+					hasDeepProps = true;
+				}
+			}
+			break;
+
+		case __2_KEYED_NODE:
+			for (var kids = vNode.__kids, i = 0; i < kids.length; i++)
+			{
+				var kid = kids[i];
+				if (_VirtualDom_applyPropsDeep(kid.b, tNode.__children[kid.a]))
+				{
+					hasDeepProps = true;
+				}
+			}
+			break;
+
+		// Only __2_CUSTOM left. It has no children to go through.
+	}
+
+	vNode.__hasProps = hasOwnProps ? __3_OWN_PROPS : hasDeepProps ? __3_DEEP_PROPS : __3_NO_PROPS;
+	return hasOwnProps || hasDeepProps;
 }
 
 function _VirtualDom_diffNodes(domNode, x, y, eventNode, tNode, diffKids)
@@ -1429,13 +1576,12 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 	var yLen = yKids.length;
 
 	var translated = false;
-	var previousSibling = null;
 
 	// PAIRWISE DIFF COMMON KIDS
 
 	for (var minLen = xLen < yLen ? xLen : yLen, i = 0; i < minLen; i++)
 	{
-		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode, tNode.__children[i]);
+		var diffReturn = _VirtualDom_diffHelp(xKids[i], yKids[i], eventNode, tNode.__children[i], undefined);
 		var domNode = diffReturn.__domNode;
 
 		if (diffReturn.__translated)
@@ -1445,16 +1591,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 
 		if (diffReturn.__reinsert)
 		{
-			_VirtualDom_insertAfter(parentDomNode, domNode, previousSibling);
-			previousSibling = domNode;
-		}
-		// An extension might have removed an element we have rendered before,
-		// or moved it to another parent. In such cases, `parentDomNode.insertBefore(x, domNode)`
-		// would throw errors. Keep the previous reference element in those cases – that should still
-		// result in the correct element order, just with some element missing.
-		else if (domNode.parentNode === parentDomNode)
-		{
-			previousSibling = domNode;
+			_VirtualDom_insertAfter(parentDomNode, domNode, _VirtualDom_previousSiblingWithSameParent(parentDomNode, tNode, i));
 		}
 	}
 
@@ -1478,7 +1615,7 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 		{
 			var y = yKids[i];
 			var childTNode = _VirtualDom_createTNode(undefined);
-			var domNode = _VirtualDom_render(y, eventNode, childTNode);
+			var domNode = _VirtualDom_render(y, eventNode, childTNode, undefined);
 			tNode.__children[i] = childTNode;
 			_VirtualDom_appendChild(parentDomNode, domNode);
 		}
@@ -1487,6 +1624,30 @@ function _VirtualDom_diffKids(parentDomNode, xParent, yParent, eventNode, tNode)
 	return translated;
 }
 
+
+
+// Finds the DOM node of the closest kid before index `i`, that is still a child of
+// `parentDomNode` (if any). An extension might have removed an element we
+// have rendered before, or moved it to another parent. In such cases,
+// `parentDomNode.insertBefore(x, domNode)` would throw errors. We can just
+// skip re-parented DOM nodes – since they aren’t in this parent anymore, we
+// still end up with the correct order (just with some elements missing).
+// Looping to find this only when re-inserting an element is faster than
+// keeping track of the previous DOM node – and checking `.parentNode` on it –
+// for every child we diff. Re-inserting elements only happens if for example
+// a page translator modifies the page, and isn’t the common case.
+function _VirtualDom_previousSiblingWithSameParent(parentDomNode, tNode, i)
+{
+	while (i--)
+	{
+		var domNode = tNode.__children[i].__domNode;
+		if (domNode.parentNode === parentDomNode)
+		{
+			return domNode;
+		}
+	}
+	return null;
+}
 
 
 // KEYED DIFF
@@ -1564,7 +1725,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 
 			if (xKey === yKey)
 			{
-				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey]);
+				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey], undefined);
 				xIndexLower++;
 				yIndexLower++;
 				handleDiffReturn(diffReturn, false);
@@ -1598,7 +1759,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			else
 			{
 				var childTNode = _VirtualDom_createTNode(undefined);
-				var domNode = _VirtualDom_render(y, eventNode, childTNode);
+				var domNode = _VirtualDom_render(y, eventNode, childTNode, undefined);
 				tNode.__children[yKey] = childTNode;
 				_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
 				yIndexLower++;
@@ -1618,7 +1779,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 
 			if (xKey === yKey)
 			{
-				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey]);
+				var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey], undefined);
 				xIndexUpper--;
 				yIndexUpper--;
 				handleDiffReturn(diffReturn, true);
@@ -1652,7 +1813,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 			else
 			{
 				var childTNode = _VirtualDom_createTNode(undefined);
-				var domNode = _VirtualDom_render(y, eventNode, childTNode);
+				var domNode = _VirtualDom_render(y, eventNode, childTNode, undefined);
 				tNode.__children[yKey] = childTNode;
 				_VirtualDom_insertBefore(parentDomNode, domNode, domNodeUpper);
 				yIndexUpper--;
@@ -1677,7 +1838,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 
 			if (xKeyLower === yKeyUpper)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKidLower.b, yKidUpper.b, eventNode, tNode.__children[yKeyUpper]);
+				var diffReturn = _VirtualDom_diffHelp(xKidLower.b, yKidUpper.b, eventNode, tNode.__children[yKeyUpper], undefined);
 				xIndexLower++;
 				yIndexUpper--;
 				_VirtualDom_moveBefore(parentDomNode, diffReturn.__domNode, domNodeUpper);
@@ -1687,7 +1848,7 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 
 			if (xKeyUpper === yKeyLower)
 			{
-				var diffReturn = _VirtualDom_diffHelp(xKidUpper.b, yKidLower.b, eventNode, tNode.__children[yKeyLower]);
+				var diffReturn = _VirtualDom_diffHelp(xKidUpper.b, yKidLower.b, eventNode, tNode.__children[yKeyLower], undefined);
 				yIndexLower++;
 				xIndexUpper--;
 				_VirtualDom_moveAfter(parentDomNode, diffReturn.__domNode, domNodeLower);
@@ -1718,14 +1879,14 @@ function _VirtualDom_diffKeyedKids(parentDomNode, xParent, yParent, eventNode, t
 		if (yKey in xKidsMap)
 		{
 			var x = xKidsMap[yKey];
-			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey]);
+			var diffReturn = _VirtualDom_diffHelp(x, y, eventNode, tNode.__children[yKey], undefined);
 			_VirtualDom_moveAfter(parentDomNode, diffReturn.__domNode, domNodeLower);
 			handleDiffReturn(diffReturn, false);
 		}
 		else
 		{
 			var childTNode = _VirtualDom_createTNode(undefined);
-			var domNode = _VirtualDom_render(y, eventNode, childTNode);
+			var domNode = _VirtualDom_render(y, eventNode, childTNode, undefined);
 			tNode.__children[yKey] = childTNode;
 			_VirtualDom_insertAfter(parentDomNode, domNode, domNodeLower);
 			domNodeLower = domNode;
@@ -1758,7 +1919,7 @@ function _VirtualDom_applyPatches(rootDomNode, oldVirtualNode, newVirtualNode, e
 	// the root DOM node instead of returning it.
 	var tNode = rootDomNode.elmTree;
 
-	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode, tNode);
+	var diffReturn = _VirtualDom_diffHelp(oldVirtualNode, newVirtualNode, eventNode, tNode, undefined);
 	// We can’t do anything about `diffReturn.__translated` or
 	// `diffReturn.__reinsert` here, because we don’t know the parent of the
 	// root node. Note that `rootDomNode.parentNode` cannot be used, because if
@@ -1785,7 +1946,7 @@ function _VirtualDom_applyPatchRedraw(x, y, eventNode, tNode)
 	// Reset children before rendering afresh. Otherwise we might keep references to old children
 	// if the new render results in fewer children.
 	tNode.__children = Object.create(null);
-	var newNode = _VirtualDom_render(y, eventNode, tNode);
+	var newNode = _VirtualDom_render(y, eventNode, tNode, undefined);
 
 	// An extension might have removed the element. In this case, we are redrawing because `x` and `y`
 	// have changed a lot, implying that the structure has changed significantly, and that they can’t
@@ -2098,7 +2259,8 @@ function _VirtualDom_virtualizeHelp(node, tNode)
 		__facts: _VirtualDom_organizeFacts(attrList),
 		__kids: kidList,
 		__namespace: namespace,
-		__descendantsCount: 0
+		__descendantsCount: 0,
+		__hasProps: __3_UNSET
 	};
 }
 
@@ -2140,7 +2302,8 @@ function _VirtualDom_upkey(node, keyedNode, tNode) {
 		__kids: newKeyedKids,
 		__kidsMap: newKidsMap,
 		__namespace: node.__namespace,
-		__descendantsCount: node.__descendantsCount
+		__descendantsCount: node.__descendantsCount,
+		__hasProps: __3_UNSET
 	};
 }
 
@@ -2164,7 +2327,8 @@ function _VirtualDom_dekey(keyedNode, tNode)
 		__facts: keyedNode.__facts,
 		__kids: kids,
 		__namespace: keyedNode.__namespace,
-		__descendantsCount: keyedNode.__descendantsCount
+		__descendantsCount: keyedNode.__descendantsCount,
+		__hasProps: __3_UNSET
 	};
 }
 
