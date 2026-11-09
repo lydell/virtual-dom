@@ -1222,12 +1222,10 @@ function _VirtualDom_diffHelp(x, y, eventNode, tNode, outerThunkEventNode)
 		if (xType === __2_NODE && yType === __2_KEYED_NODE)
 		{
 			x = _VirtualDom_upkey(x, y, tNode);
-			xType = __2_KEYED_NODE;
 		}
 		else if (xType === __2_KEYED_NODE && yType === __2_NODE)
 		{
 			x = _VirtualDom_dekey(x, tNode);
-			xType = __2_NODE;
 		}
 		else
 		{
